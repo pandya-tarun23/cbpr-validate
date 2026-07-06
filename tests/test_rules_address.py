@@ -1,3 +1,4 @@
+from cbpr_validate.model.finding import Severity
 from cbpr_validate.parsers.pacs008 import parse_pacs008
 from cbpr_validate.rules.registry import run_all
 
@@ -89,8 +90,6 @@ SAMPLE_UNSTRUCTURED = b"""
   </FIToFICstmrCdtTrf>
 </Document>
 """
-
-from cbpr_validate.model.finding import Severity   # add to imports
 
 SAMPLE_PARTIAL = b"""
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">

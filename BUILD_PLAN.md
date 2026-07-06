@@ -331,6 +331,27 @@ python -m mypy src tests
 **Phase 4 — pacs.009 (COV) + pacs.002 + pacs.004 (return) + agents (1.5 weeks)**
 Parsers for all three, `agents.py` incl. the COV rule, `returns.py` for pacs.004. *DoD: COV reimbursement-vs-intermediary rule tested; pacs.004 return-reason + amount rules tested.*
 
+Status: **Completed** ✅
+
+What was delivered:
+- Parsers for pacs.009 core **and** COV ([src/cbpr_validate/parsers/pacs009.py](src/cbpr_validate/parsers/pacs009.py)), pacs.002 ([src/cbpr_validate/parsers/pacs002.py](src/cbpr_validate/parsers/pacs002.py)), and pacs.004 ([src/cbpr_validate/parsers/pacs004.py](src/cbpr_validate/parsers/pacs004.py)), sharing a small helper module ([src/cbpr_validate/parsers/_common.py](src/cbpr_validate/parsers/_common.py)). The COV parser captures the embedded `UndrlygCstmrCdtTrf` (parties, agents, UETR, amount) as a nested `Payment` so the COV rule and later correlation can reach it.
+- `detect.py` now recognises pacs.008/009/002/004 by namespace (root or child envelope).
+- Agent rules ([src/cbpr_validate/rules/agents.py](src/cbpr_validate/rules/agents.py)): `CBPR-AGT-001` chain consistency (WARN), `CBPR-AGT-002` the headline pacs.009 COV reimbursement-vs-intermediary distinction (ERROR), `CBPR-AGT-003` LEI well-formedness (INFO).
+- Return rules ([src/cbpr_validate/rules/returns.py](src/cbpr_validate/rules/returns.py)): `CBPR-RTN-001` return reason ∈ ExternalReturnReason1Code (ERROR), `CBPR-RTN-002` six mandatory original-reference fields (ERROR), `CBPR-RTN-003` returned ≤ original net of charges (ERROR/WARN — conservative interpretation, see the rule docstring, since the exact charge-deduction tolerance is ambiguous in public material), `CBPR-RTN-004` ChrgsInf reconciliation (WARN), `CBPR-RTN-005` compensation/interest well-formedness (INFO).
+- Model extended with the pacs.009 agent chain, the embedded `underlying` transaction, and the pacs.002/004 status/return fields ([src/cbpr_validate/model/payment.py](src/cbpr_validate/model/payment.py)); all new rules registered in `run_all()`.
+- `CBPR-COD-004` upgraded to run against a real parsed pacs.002 fixture; the Phase 3 direct-construction workaround was removed.
+- Adversarial fixtures for every new rule, including: a COV misusing reimbursement/intermediary agents (`AGT-002` fires), a pacs.004 missing an original-reference field (`RTN-002` fires), and a pacs.004 with returned > original (`RTN-003` fires).
+
+How to verify locally:
+
+```bash
+python -m pytest -q            # 45 passed
+python -m ruff check src tests # clean
+python -m mypy src             # clean
+```
+
+New rule IDs and severities: `CBPR-AGT-001` (WARN), `CBPR-AGT-002` (ERROR), `CBPR-AGT-003` (INFO), `CBPR-RTN-001` (ERROR), `CBPR-RTN-002` (ERROR), `CBPR-RTN-003` (ERROR/WARN), `CBPR-RTN-004` (WARN), `CBPR-RTN-005` (INFO). Coverage on the new modules is ≥95% (agents.py 100%, returns.py 99%, pacs009/002/004.py 100%, _common.py 100%, detect.py 95%).
+
 **Phase 4.5 — Correlation engine (0.5–1 week)**
 `match/matcher.py` + `MatchResult` (§6): COV↔008, 002↔008 (bidirectional via `direction`), 004↔008, all keyed primarily on UETR. *DoD: each of the three scenarios passes fixtures for both a clean match and a deliberately mismatched pair (wrong UETR, amount drift).*
 

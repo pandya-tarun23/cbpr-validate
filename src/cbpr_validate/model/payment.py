@@ -19,11 +19,20 @@ class PostalAddress(BaseModel):
 class Party(BaseModel):
     name: str | None = None
     postal_address: PostalAddress | None = None
+    lei: str | None = None
 
 
 class Agent(BaseModel):
     bic: str | None = None
     name: str | None = None
+    lei: str | None = None
+
+
+class ChargeInfo(BaseModel):
+    """A single ChrgsInf entry (charge amount + the agent that levied it)."""
+
+    amount: Amount | None = None
+    agent: Agent | None = None
 
 
 class Payment(BaseModel):
@@ -42,3 +51,31 @@ class Payment(BaseModel):
     status_reason: str | None = None
     settlement_method: str | None = None
     clearing_system: str | None = None
+
+    # --- Phase 4: agent chain (pacs.009 core + COV) ---
+    instg_agt: Agent | None = None
+    instd_agt: Agent | None = None
+    intrmy_agt1: Agent | None = None
+    intrmy_agt2: Agent | None = None
+    # Reimbursement (cover/settlement side) agents — distinct role from
+    # intermediary agents. Conflating the two is the classic pacs.009 COV error.
+    instg_rmbrsmnt_agt: Agent | None = None
+    instd_rmbrsmnt_agt: Agent | None = None
+    thrd_rmbrsmnt_agt: Agent | None = None
+    # The embedded underlying customer credit transfer carried by a pacs.009 COV.
+    underlying: Payment | None = None
+
+    # --- Phase 4: status report (pacs.002) ---
+    tx_status: str | None = None
+
+    # --- Phase 4: return (pacs.004) ---
+    return_reason: str | None = None
+    orgnl_msg_id: str | None = None
+    orgnl_end_to_end_id: str | None = None
+    orgnl_tx_id: str | None = None
+    orgnl_uetr: str | None = None
+    orgnl_interbank_settlement_amount: Amount | None = None
+    orgnl_interbank_settlement_date: str | None = None
+    returned_interbank_settlement_amount: Amount | None = None
+    charges: list[ChargeInfo] | None = None
+    compensation_amount: Amount | None = None

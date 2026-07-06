@@ -46,6 +46,13 @@ def list_rules() -> list[str]:
 
 # Ensure common rule modules are imported so they register on package import.
 try:  # pragma: no cover - defensive import
-    from cbpr_validate.rules import address, amounts, codes, structural  # noqa: F401
+    from cbpr_validate.rules import (  # noqa: F401
+        address,
+        agents,
+        amounts,
+        codes,
+        returns,
+        structural,
+    )
 except Exception:
     pass
