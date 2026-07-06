@@ -90,6 +90,49 @@ SAMPLE_UNSTRUCTURED = b"""
 </Document>
 """
 
+from cbpr_validate.model.finding import Severity   # add to imports
+
+SAMPLE_PARTIAL = b"""
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
+  <FIToFICstmrCdtTrf>
+    <CstmrCdtTrfInitn>
+      <PmtInf>
+        <PmtId>
+          <UETR>44444444-4444-4444-8444-444444444444</UETR>
+        </PmtId>
+        <Dbtr>
+          <Nm>Partial Debtor</Nm>
+          <PstlAdr>
+            <TwnNm>Partialtown</TwnNm>
+            <!-- Ctry deliberately omitted -->
+          </PstlAdr>
+        </Dbtr>
+        <CdtTrfTxInf>
+          <PmtId>
+            <UETR>44444444-4444-4444-8444-444444444444</UETR>
+          </PmtId>
+          <Amt>
+            <InstdAmt Ccy="EUR">100.00</InstdAmt>
+          </Amt>
+        </CdtTrfTxInf>
+      </PmtInf>
+    </CstmrCdtTrfInitn>
+  </FIToFICstmrCdtTrf>
+</Document>
+"""
+
+
+def test_addr_002_fires_on_partial_address() -> None:
+    p = parse_pacs008(SAMPLE_PARTIAL)
+    result = run_all(p)
+    findings_002 = [f for f in result.findings if f.rule_id == "CBPR-ADDR-002"]
+    # the rule must actually fire on a town-without-country address
+    assert findings_002, "ADDR-002 should fire when Ctry is missing"
+    # and it must fire at ERROR severity
+    assert all(f.severity == Severity.ERROR for f in findings_002)
+    # isolation: this is the case ADDR-001 does NOT catch (structured data present)
+    ids = {f.rule_id for f in result.findings}
+    assert "CBPR-ADDR-001" not in ids
 
 def test_address_rules_structured() -> None:
     p = parse_pacs008(SAMPLE_STRUCTURED)
