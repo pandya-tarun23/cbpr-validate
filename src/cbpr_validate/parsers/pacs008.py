@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 from lxml import etree
 
-from cbpr_validate.model.payment import Amount, Agent, Party, Payment, PostalAddress
-
+from cbpr_validate.model.payment import (
+    Agent,
+    Amount,
+    Party,
+    Payment,
+    PostalAddress,
+)
 
 NSMAP = {None: "urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08"}
 
 
-def _text(node: Optional[etree._Element]) -> Optional[str]:
+def _text(node: etree._Element | None) -> str | None:
     if node is None:
         return None
     return node.text.strip() if node.text else None
@@ -45,11 +49,15 @@ def parse_pacs008(xml_bytes: bytes) -> Payment:
     cdtr_nm = _text(root.find('.//{*}Cdtr/{*}Nm'))
 
     # postal addresses
-    def _parse_address(parent_tag: str) -> Optional[PostalAddress]:
+    def _parse_address(parent_tag: str) -> PostalAddress | None:
         addr = root.find(f'.//{{*}}{parent_tag}/{{*}}PstlAdr')
         if addr is None:
             return None
-        adr_lines = [_text(n) for n in addr.findall('{*}AdrLine') if _text(n)]
+        adr_lines = [
+            line
+            for line in (_text(n) for n in addr.findall('{*}AdrLine'))
+            if line is not None
+        ]
         twn = _text(addr.find('{*}TwnNm'))
         ctry = _text(addr.find('{*}Ctry'))
         return PostalAddress(adr_line=adr_lines or None, twn_nm=twn, ctry=ctry)
@@ -58,7 +66,7 @@ def parse_pacs008(xml_bytes: bytes) -> Payment:
     cdtr = Party(name=cdtr_nm, postal_address=_parse_address('Cdtr'))
 
     # agents/BICs
-    def _parse_agent(tag: str) -> Optional[Agent]:
+    def _parse_agent(tag: str) -> Agent | None:
         bic = _text(root.find(f'.//{{*}}{tag}/{{*}}FinInstnId/{{*}}BIC'))
         if bic:
             return Agent(bic=bic)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -12,27 +11,34 @@ class Amount(BaseModel):
 
 
 class PostalAddress(BaseModel):
-    adr_line: Optional[List[str]] = None
-    twn_nm: Optional[str] = None
-    ctry: Optional[str] = None
+    adr_line: list[str] | None = None
+    twn_nm: str | None = None
+    ctry: str | None = None
 
 
 class Party(BaseModel):
-    name: Optional[str] = None
-    postal_address: Optional[PostalAddress] = None
+    name: str | None = None
+    postal_address: PostalAddress | None = None
 
 
 class Agent(BaseModel):
-    bic: Optional[str] = None
-    name: Optional[str] = None
+    bic: str | None = None
+    name: str | None = None
 
 
 class Payment(BaseModel):
-    uetr: Optional[str] = None
-    instr_id: Optional[str] = None
-    tx_id: Optional[str] = None
-    amount: Optional[Amount] = None
-    dbtr: Optional[Party] = None
-    cdtr: Optional[Party] = None
-    dbtr_agt: Optional[Agent] = None
-    cdtr_agt: Optional[Agent] = None
+    message_type: str | None = None
+    uetr: str | None = None
+    instr_id: str | None = None
+    tx_id: str | None = None
+    amount: Amount | None = None
+    dbtr: Party | None = None
+    cdtr: Party | None = None
+    dbtr_agt: Agent | None = None
+    cdtr_agt: Agent | None = None
+    purpose: str | None = None
+    category_purpose: str | None = None
+    charge_bearer: str | None = None
+    status_reason: str | None = None
+    settlement_method: str | None = None
+    clearing_system: str | None = None
