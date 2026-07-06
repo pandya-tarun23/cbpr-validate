@@ -1,0 +1,7 @@
+{
+  "ExternalPurpose1Code": ["CORT", "DVPM", "SALA", "TREA", "CASH"],
+  "ExternalCategoryPurpose1Code": ["CASH", "CCRD", "CPRC", "SALA"],
+  "ExternalStatusReason1Code": ["ACCP", "RJCT", "PDNG"],
+  "ExternalReturnReason1Code": ["CURR", "DNCL", "CANC"],
+  "ISO3166-1-alpha-2": ["GB", "FR", "DE", "US", "JP", "NL", "ES", "IT", "SE", "NO"]
+}

@@ -313,6 +313,21 @@ Notes / next steps for Phase 2 → 3:
 **Phase 3 — Codes + amounts + structural (1 week)**
 `codesets/loader.py` (sync + snapshot), `codes.py`, `amounts.py`, `structural.py`. *DoD: purpose/charge-bearer validated against a real code-set snapshot.*
 
+Status: **Completed** ✅
+
+What was delivered:
+- A committed ISO 20022 code-set snapshot loader in [src/cbpr_validate/codesets/loader.py](src/cbpr_validate/codesets/loader.py) and [src/cbpr_validate/codesets/data/iso20022_codesets.json](src/cbpr_validate/codesets/data/iso20022_codesets.json).
+- Rule modules for code-set, amount, structural, and address-country validation in [src/cbpr_validate/rules/codes.py](src/cbpr_validate/rules/codes.py), [src/cbpr_validate/rules/amounts.py](src/cbpr_validate/rules/amounts.py), [src/cbpr_validate/rules/structural.py](src/cbpr_validate/rules/structural.py), and [src/cbpr_validate/rules/address.py](src/cbpr_validate/rules/address.py).
+- Coverage for the new rules in [tests/test_phase3_rules.py](tests/test_phase3_rules.py) and additional coverage improvements in [tests/test_misc_coverage.py](tests/test_misc_coverage.py).
+
+How to verify locally:
+
+```bash
+python -m pytest -q
+python -m ruff check .
+python -m mypy src tests
+```
+
 **Phase 4 — pacs.009 (COV) + pacs.002 + pacs.004 (return) + agents (1.5 weeks)**
 Parsers for all three, `agents.py` incl. the COV rule, `returns.py` for pacs.004. *DoD: COV reimbursement-vs-intermediary rule tested; pacs.004 return-reason + amount rules tested.*
 

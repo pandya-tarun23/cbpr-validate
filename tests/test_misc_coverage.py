@@ -1,6 +1,6 @@
-from cbpr_validate.parsers.detect import detect_message_type
-from cbpr_validate.model.validation_result import ValidationResult
 from cbpr_validate.model.finding import Finding, Severity
+from cbpr_validate.model.validation_result import ValidationResult
+from cbpr_validate.parsers.detect import detect_message_type
 from cbpr_validate.rules import registry
 
 
@@ -28,7 +28,7 @@ def test_registry_exception_branch() -> None:
     before = list(registry._RULES)
 
     @registry.register
-    def _broken(payment):
+    def _broken(payment: object) -> list[Finding]:
         raise RuntimeError("boom")
 
     try:

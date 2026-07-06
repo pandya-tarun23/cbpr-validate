@@ -1,6 +1,5 @@
 from cbpr_validate.parsers.pacs008 import parse_pacs008
 
-
 SAMPLE_STRUCTURED = b"""
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
   <FIToFICstmrCdtTrf>

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Callable, List
+from collections.abc import Callable
 
-from cbpr_validate.model.finding import Finding
+from cbpr_validate.model.finding import Finding, Severity
 from cbpr_validate.model.validation_result import ValidationResult
 
-Rule = Callable[..., List[Finding]]
+Rule = Callable[..., list[Finding]]
 
-_RULES: List[Rule] = []
+_RULES: list[Rule] = []
 
 
 def register(rule: Rule) -> Rule:
@@ -20,7 +20,7 @@ def register(rule: Rule) -> Rule:
     return rule
 
 
-def run_all(*args, **kwargs) -> ValidationResult:
+def run_all(*args: object, **kwargs: object) -> ValidationResult:
     result = ValidationResult(findings=[])
     for r in _RULES:
         try:
@@ -32,7 +32,7 @@ def run_all(*args, **kwargs) -> ValidationResult:
             result.findings.append(
                 Finding(
                     rule_id="REG-EXC",
-                    severity="ERROR",
+                    severity=Severity.ERROR,
                     message=f"Rule {r.__name__} failed: {exc}",
                     location=None,
                 )
@@ -40,12 +40,12 @@ def run_all(*args, **kwargs) -> ValidationResult:
     return result
 
 
-def list_rules() -> List[str]:
+def list_rules() -> list[str]:
     return [r.__name__ for r in _RULES]
 
 
 # Ensure common rule modules are imported so they register on package import.
 try:  # pragma: no cover - defensive import
-    from cbpr_validate.rules import address  # noqa: F401
+    from cbpr_validate.rules import address, amounts, codes, structural  # noqa: F401
 except Exception:
     pass
