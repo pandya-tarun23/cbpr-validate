@@ -28,7 +28,7 @@ class Direction(StrEnum):
     """Whose pacs.008 it is, for the bidirectional pacs.002 scenario.
 
     Supplied explicitly by the caller. The tool deliberately does NOT infer
-    identity from BICs — it has no notion of "you".
+    identity from BICs - it has no notion of "you".
     """
 
     OUTBOUND = "outbound"  # we sent the pacs.008, the pacs.002 is the reply
@@ -46,7 +46,7 @@ class MatchKey(StrEnum):
     UETR = "UETR"
     ORGNL_TX_ID = "OrgnlTxId"
     ORGNL_END_TO_END_ID = "OrgnlEndToEndId"
-    NONE = "NONE"  # no shared identifier on both sides — cannot be linked
+    NONE = "NONE"  # no shared identifier on both sides - cannot be linked
 
 
 class MessageRef(BaseModel):

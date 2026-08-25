@@ -15,7 +15,7 @@ traceable rules, honest gaps) matters as much as the functionality.
 
 ## Current status
 
-Phases 0–4.5 are complete and on `main`, verified green.
+Phases 0–5 are complete and on `main`, verified green.
 - Phase 0: skeleton + CI.
 - Phase 1: version-agnostic Pydantic model, `pacs.008` parser, `detect.py`.
 - Phase 2: rule registry (`run_all`), address rule group.
@@ -25,8 +25,13 @@ Phases 0–4.5 are complete and on `main`, verified green.
   (incl. the headline `CBPR-AGT-002` COV rule) and `returns.py`.
 - Phase 4.5: pairwise correlation engine (`match/matcher.py`, `match/result.py`)
   — `CBPR-COR-001/002/003`, keyed on UETR with a flagged legacy fallback.
+- Phase 5: the three interfaces — Typer CLI (`check`, `match`), FastAPI
+  (`/validate`, `/correlate`, `/health`), text/JSON/JUnit reporters, the
+  optional XSD layer (`schema/xsd.py` + `config.py`), and `parsers/parse.py`
+  as the shared detect-and-dispatch entry point.
 
-**Next: Phase 5** (CLI + FastAPI + JSON/text/JUnit reporters, optional XSD layer).
+**Next: Phase 6** (Dockerfile, mkdocs site, README polish, badges, benchmark,
+TestPyPI -> PyPI, tag v1.0.0).
 
 ## Carried-over decisions — do NOT re-litigate
 
@@ -40,6 +45,15 @@ Phases 0–4.5 are complete and on `main`, verified green.
   `MessageStore` is v2, not a gap to close.
 - `direction` is **required** for the `pacs.002 ↔ pacs.008` correlation and has
   no default. The tool must never infer whose message it is from BICs.
+- All **emitted** text (finding messages, spec references, reporter chrome) is
+  ASCII. A `<=` symbol in a `spec_reference` once crashed the CLI on a cp1252
+  Windows console with `UnicodeEncodeError`. Do not reintroduce em dashes or
+  symbols into anything that can be printed.
+- The three interfaces share `parsers/parse.py`, `rules/registry.run_all` and
+  `report/json_report`. Never reimplement parsing or formatting inside `cli.py`
+  or `api/main.py` — `tests/test_interface_parity.py` will fail if you do.
+- JUnit maps **only** ERROR to `<failure>`. WARN/INFO are passing cases, so a
+  build fails exactly when the message is non-compliant.
 
 ## Operating rules (these are non-negotiable)
 

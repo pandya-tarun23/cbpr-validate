@@ -44,7 +44,7 @@ def parse_pacs008(xml_bytes: bytes) -> Payment:
             value = Decimal('0')
         amount = Amount(value=value, currency=currency)
 
-    # interbank settlement amount — distinct from InstdAmt once charges apply,
+    # interbank settlement amount - distinct from InstdAmt once charges apply,
     # and the amount cross-message correlation compares (Phase 4.5).
     sttlm = root.find('.//{*}IntrBkSttlmAmt')
     interbank_settlement_amount = None

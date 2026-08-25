@@ -4,7 +4,7 @@ These checks are distinct from the rule groups in ``rules/``: a rule asks
 "does this message comply with the guidelines?", a correlation asks "do these
 two specific messages correctly reference each other?".
 
-v1 is deliberately pairwise and stateless — you hand :func:`correlate` exactly
+v1 is deliberately pairwise and stateless - you hand :func:`correlate` exactly
 the two messages you want compared. There is no message store and no inference
 about a stream of traffic over time (that is the v2 ``MessageStore``).
 
@@ -29,12 +29,12 @@ from cbpr_validate.model.finding import Finding, Severity
 from cbpr_validate.model.payment import Amount, Payment
 
 _SPEC_COV = (
-    "CBPR+ Usage Guidelines — pacs.009 COV cover of an underlying "
+    "CBPR+ Usage Guidelines - pacs.009 COV cover of an underlying "
     "customer credit transfer (UndrlygCstmrCdtTrf)"
 )
-_SPEC_STATUS = "CBPR+ Usage Guidelines — pacs.002 original references (OrgnlUETR/OrgnlTxId)"
-_SPEC_RETURN = "CBPR+ Usage Guidelines — pacs.004 original references and returned amount"
-_SPEC_UETR = "CBPR+ Usage Guidelines — UETR persists end-to-end across the payment lifecycle"
+_SPEC_STATUS = "CBPR+ Usage Guidelines - pacs.002 original references (OrgnlUETR/OrgnlTxId)"
+_SPEC_RETURN = "CBPR+ Usage Guidelines - pacs.004 original references and returned amount"
+_SPEC_UETR = "CBPR+ Usage Guidelines - UETR persists end-to-end across the payment lifecycle"
 
 
 class UnsupportedPairError(ValueError):
@@ -56,7 +56,7 @@ def _resolve_key(
 ) -> _Key:
     """Decide whether the reference side points at ``original``, and on what.
 
-    UETR wins whenever both sides carry one — including when they *disagree*,
+    UETR wins whenever both sides carry one - including when they *disagree*,
     which is a genuine non-match rather than a reason to try a weaker key.
     """
     if ref_uetr and original.uetr:
@@ -85,7 +85,7 @@ def _no_link_finding(rule_id: str, key: _Key, spec: str) -> Finding:
     else:
         message = (
             f"{key.key.value} {key.value!r} on the referencing message does not match "
-            f"the original — the two messages do not describe the same payment"
+            f"the original - the two messages do not describe the same payment"
         )
         remediation = f"Check that the {key.key.value} was copied from the original message"
     return Finding(
@@ -210,7 +210,7 @@ def _check_references(
 
     Runs independently of which key the pair matched on: a message can match on
     UETR and still quote the wrong OrgnlTxId. Graded WARN because the linkage
-    itself is already established by the match key — this is a data-quality
+    itself is already established by the match key - this is a data-quality
     inconsistency in the echoed references, not a broken link.
     """
     findings: list[Finding] = []
@@ -241,7 +241,7 @@ def _check_references(
 
 
 def _correlate_cov(cov: Payment, original: Payment) -> MatchResult:
-    """CBPR-COR-001 — pacs.009 COV <-> the originating pacs.008 it covers."""
+    """CBPR-COR-001 - pacs.009 COV <-> the originating pacs.008 it covers."""
     refs = (MessageRef.from_payment(cov), MessageRef.from_payment(original))
     underlying = cov.underlying
     if underlying is None:
@@ -256,7 +256,7 @@ def _correlate_cov(cov: Payment, original: Payment) -> MatchResult:
                     rule_id="CBPR-COR-001",
                     severity=Severity.ERROR,
                     message=(
-                        "The pacs.009 carries no UndrlygCstmrCdtTrf — it is a core "
+                        "The pacs.009 carries no UndrlygCstmrCdtTrf - it is a core "
                         "pacs.009, not a COV, so it cannot cover a pacs.008"
                     ),
                     location="FICdtTrf/CdtTrfTxInf/UndrlygCstmrCdtTrf",
@@ -294,7 +294,7 @@ def _correlate_cov(cov: Payment, original: Payment) -> MatchResult:
 def _correlate_status(
     status: Payment, original: Payment, direction: Direction
 ) -> MatchResult:
-    """CBPR-COR-002 — pacs.002 <-> pacs.008, in either direction."""
+    """CBPR-COR-002 - pacs.002 <-> pacs.008, in either direction."""
     key = _resolve_key(
         status.orgnl_uetr, status.orgnl_tx_id, status.orgnl_end_to_end_id, original
     )
@@ -325,7 +325,7 @@ def _check_returned_amount(rtn: Payment, original: Payment) -> list[Finding]:
 
     ``CBPR-RTN-003`` already checks returned <= original using the amounts the
     return itself declares. The cross-message value-add here is checking those
-    declared amounts against the pacs.008 they claim to return — a return can be
+    declared amounts against the pacs.008 they claim to return - a return can be
     internally consistent and still misstate the original.
 
     Only compares against the pacs.008's interbank settlement amount; if the
@@ -379,7 +379,7 @@ def _check_returned_amount(rtn: Payment, original: Payment) -> list[Finding]:
 
 
 def _correlate_return(rtn: Payment, original: Payment) -> MatchResult:
-    """CBPR-COR-003 — pacs.004 return <-> the original pacs.008."""
+    """CBPR-COR-003 - pacs.004 return <-> the original pacs.008."""
     key = _resolve_key(
         rtn.orgnl_uetr, rtn.orgnl_tx_id, rtn.orgnl_end_to_end_id, original
     )

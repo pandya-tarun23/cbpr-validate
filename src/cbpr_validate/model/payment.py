@@ -65,7 +65,7 @@ class Payment(BaseModel):
     instd_agt: Agent | None = None
     intrmy_agt1: Agent | None = None
     intrmy_agt2: Agent | None = None
-    # Reimbursement (cover/settlement side) agents — distinct role from
+    # Reimbursement (cover/settlement side) agents - distinct role from
     # intermediary agents. Conflating the two is the classic pacs.009 COV error.
     instg_rmbrsmnt_agt: Agent | None = None
     instd_rmbrsmnt_agt: Agent | None = None

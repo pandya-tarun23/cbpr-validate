@@ -50,7 +50,7 @@ def test_category_purpose_rule() -> None:
     ids = {f.rule_id for f in result.findings}
     assert "CBPR-COD-002" in ids
     # CBPR-COD-004 (status reason) is now exercised against a real parsed
-    # pacs.002 in tests/test_cod004_pacs002.py — no direct-construction workaround.
+    # pacs.002 in tests/test_cod004_pacs002.py - no direct-construction workaround.
 
 
 def test_amount_rules() -> None:

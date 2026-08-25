@@ -382,6 +382,33 @@ New correlation IDs and severities: `CBPR-COR-001` (ERROR no-link / ERROR amount
 **Phase 5 — Interfaces (1 week)**
 CLI (Typer: `check`, `match`), FastAPI service (`/validate`, `/correlate`), JSON/text/JUnit reporters, optional XSD layer. *DoD: all three interfaces validate and correlate the same messages identically.*
 
+Status: **Completed** ✅
+
+What was delivered:
+- **Shared core first.** `parsers/parse.py` (`parse_message`) detects and dispatches to the right parser, and `report/json_report.py` owns both JSON envelopes. Every interface goes through them, so the CLI and API cannot drift apart in what they report — only in how they are invoked.
+- **CLI** ([src/cbpr_validate/cli.py](src/cbpr_validate/cli.py)): `check` and `match`, with `--format text|json|junit`, `--fail-on error|warn|never`, and `--xsd`/`--xsd-dir`. Exit codes are a stable contract: `0` clean, `1` findings at/above the threshold (or messages that do not correlate), `2` unusable input. `--direction` is a required option for a pacs.002 pair, mirroring the library.
+- **API** ([src/cbpr_validate/api/main.py](src/cbpr_validate/api/main.py)): `POST /validate`, `POST /correlate`, `GET /health`, OpenAPI at `/docs`. `ValidationResponse`/`MatchResponse` give the OpenAPI document real schemas instead of a bare `object`, and a test pins their fields to the reporter envelopes. A correlation that *fails* is a 200 with `is_consistent: false` — a result, not an HTTP error; only unusable input is a 400.
+- **Reporters** ([src/cbpr_validate/report/](src/cbpr_validate/report/)): text (plain, no colour, no terminal detection, so the exact string is testable), JSON, and JUnit-XML. Only `ERROR` becomes a JUnit `<failure>`, so a build fails exactly when `is_compliant`/`is_consistent` is false — a WARN that broke someone's pipeline would make the severity useless. Built with `ElementTree` so finding text containing `&`/`<` is escaped rather than emitted raw.
+- **Optional XSD layer** ([src/cbpr_validate/schema/xsd.py](src/cbpr_validate/schema/xsd.py)) + env-driven [config.py](src/cbpr_validate/config.py) (`CBPR_VALIDATE_XSD_DIR`). No schema is shipped or committed; schemas are located by message family. When one cannot be found it raises rather than returning "clean" — the caller asked for the layer, so silently passing would be a lie. Tests generate a throwaway schema at run time, so nothing licensed enters the repo.
+- **Interface parity is tested, not asserted** ([tests/test_interface_parity.py](tests/test_interface_parity.py)): the library, CLI and API outputs are compared to each other across five messages and five correlation scenarios, plus a check that the CLI's exit code tracks the same `is_compliant` the other two report. If anyone reimplements formatting inside an interface, these fail.
+
+**Fixes carried in this phase:**
+- `report/text_report.py` used em dashes and `rules/returns.py` had a `≤` in a `spec_reference`. On a default Windows console (cp1252) the first rendered as mojibake and the second **crashed the CLI** with `UnicodeEncodeError` whenever `CBPR-RTN-003` fired. All emitted text is now ASCII, and `cli.main()` reconfigures stdout/stderr with `errors="replace"` so message content (a non-Latin party name, say) can never kill a report mid-way.
+- `tests/__init__.py` added so `tests.conftest` resolves to one module name under mypy.
+- The Phase 0 smoke test invoked the CLI with no arguments and expected the version; with subcommands, a bare invocation now prints help, so it asks for `version` by name.
+
+How to verify locally:
+
+```bash
+python -m pytest -q            # 161 passed
+python -m ruff check src tests # clean
+python -m mypy src tests       # clean
+```
+
+Verified outside the test harness as well: the installed console script against real files, and a live `uvicorn` server answering `/health`, `/docs`, `/validate` and `/correlate`.
+
+Coverage on the new modules is 100% (`cli.py`, `api/main.py`, `config.py`, `parsers/parse.py`, `schema/xsd.py`, and all three reporters).
+
 **Phase 6 — Productionise + publish (1 week)**
 Dockerfile, mkdocs site, README polish, badges, benchmark, TestPyPI → PyPI, tag v1.0.0. *DoD: clean install + run by someone other than you.*
 

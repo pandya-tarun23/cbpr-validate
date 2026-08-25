@@ -1,4 +1,4 @@
-"""Phase 4.5 — cross-message correlation (CBPR-COR-001/002/003).
+"""Phase 4.5 - cross-message correlation (CBPR-COR-001/002/003).
 
 Every scenario is covered twice: a clean match, and an adversarial pair that
 must be reported as broken (wrong UETR, amount drift, mis-echoed references).
@@ -160,7 +160,7 @@ def test_pacs008_exposes_correlation_identifiers() -> None:
 
 
 # --------------------------------------------------------------------------
-# CBPR-COR-001 — pacs.009 COV <-> originating pacs.008
+# CBPR-COR-001 - pacs.009 COV <-> originating pacs.008
 # --------------------------------------------------------------------------
 
 
@@ -241,7 +241,7 @@ def test_cor001_falls_back_to_txid_when_uetr_absent() -> None:
 
 
 # --------------------------------------------------------------------------
-# CBPR-COR-002 — pacs.002 <-> pacs.008 (bidirectional)
+# CBPR-COR-002 - pacs.002 <-> pacs.008 (bidirectional)
 # --------------------------------------------------------------------------
 
 
@@ -304,7 +304,7 @@ def test_cor002_unlinkable_pair_reports_no_shared_identifier() -> None:
 
 
 # --------------------------------------------------------------------------
-# CBPR-COR-003 — pacs.004 return <-> original pacs.008
+# CBPR-COR-003 - pacs.004 return <-> original pacs.008
 # --------------------------------------------------------------------------
 
 
@@ -324,7 +324,7 @@ def test_cor003_wrong_uetr_is_not_a_match() -> None:
 
 def test_cor003_misstated_original_amount_is_an_error() -> None:
     # Internally consistent (990 + 10 charges = 1000) but the original pacs.008
-    # actually settled 1000.00 EUR, not 1000.50 — only correlation can see this.
+    # actually settled 1000.00 EUR, not 1000.50 - only correlation can see this.
     result = correlate(
         parse_pacs004(_pacs004(orgnl_amount="1000.50", returned_amount="990.50")),
         parse_pacs008(PACS008),

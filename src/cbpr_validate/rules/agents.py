@@ -1,6 +1,6 @@
 """Agent-chain and pacs.009 COV rules (CBPR-AGT-00x).
 
-The headline rule here is ``CBPR-AGT-002`` — the reimbursement-vs-intermediary
+The headline rule here is ``CBPR-AGT-002`` - the reimbursement-vs-intermediary
 agent distinction on a pacs.009 COV, which most generic validators get wrong.
 """
 
@@ -22,7 +22,7 @@ def _bic(agent: Agent | None) -> str | None:
 
 @register
 def cbpr_agt_001_chain_consistency(payment: Payment) -> list[Finding]:
-    """Agent-chain consistency across Dbtr/Instg/Intrmy/Cdtr agents — WARN.
+    """Agent-chain consistency across Dbtr/Instg/Intrmy/Cdtr agents - WARN.
 
     A coherent cross-border chain routes a payment *through* distinct agents.
     Re-using one BIC for two opposite ends of the chain (e.g. the same agent as
@@ -50,7 +50,7 @@ def cbpr_agt_001_chain_consistency(payment: Payment) -> list[Finding]:
                     location=label,
                     remediation="Verify the agent chain; opposite roles should be distinct agents",
                     spec_reference=(
-                        "CBPR+ Usage Guidelines — agent chain "
+                        "CBPR+ Usage Guidelines - agent chain "
                         "(Instg/Instd/Intrmy/Dbtr/Cdtr agents)"
                     ),
                 )
@@ -60,10 +60,10 @@ def cbpr_agt_001_chain_consistency(payment: Payment) -> list[Finding]:
 
 @register
 def cbpr_agt_002_cov_reimbursement_vs_intermediary(payment: Payment) -> list[Finding]:
-    """pacs.009 COV: reimbursement agents must be distinct from intermediary agents — ERROR.
+    """pacs.009 COV: reimbursement agents must be distinct from intermediary agents - ERROR.
 
     On a pacs.009 COV the cover (interbank reimbursement) leg is conveyed via the
-    reimbursement agents — InstgRmbrsmntAgt / InstdRmbrsmntAgt / ThrdRmbrsmntAgt —
+    reimbursement agents - InstgRmbrsmntAgt / InstdRmbrsmntAgt / ThrdRmbrsmntAgt -
     which settle between the debtor and creditor agents. Intermediary agents
     (IntrmyAgt1/2/3) belong to the *routing* path, including the underlying
     customer credit transfer. These are semantically different roles: an agent
@@ -104,7 +104,7 @@ def cbpr_agt_002_cov_reimbursement_vs_intermediary(payment: Payment) -> list[Fin
                     "InstdRmbrsmntAgt and keep intermediary routing in IntrmyAgt#"
                 ),
                 spec_reference=(
-                    "CBPR+ Usage Guidelines — pacs.009 COV (Financial Institution Credit "
+                    "CBPR+ Usage Guidelines - pacs.009 COV (Financial Institution Credit "
                     "Transfer, cover); reimbursement agents vs intermediary agents"
                 ),
             )
@@ -114,7 +114,7 @@ def cbpr_agt_002_cov_reimbursement_vs_intermediary(payment: Payment) -> list[Fin
 
 @register
 def cbpr_agt_003_lei(payment: Payment) -> list[Finding]:
-    """LEI present/valid where it may be required — INFO.
+    """LEI present/valid where it may be required - INFO.
 
     CBPR+ encourages (and in a growing set of cases requires) an ISO 17442 LEI on
     financial-institution and organisation parties. We report, at INFO, any LEI

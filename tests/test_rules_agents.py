@@ -26,7 +26,7 @@ COV_CLEAN = b"""
 """
 
 # ADVERSARIAL COV: the SAME institution (RMBRDEFF) is presented as both the
-# reimbursement (cover) agent and an intermediary agent — the classic COV error.
+# reimbursement (cover) agent and an intermediary agent - the classic COV error.
 # AGT-002 must fire at ERROR.
 COV_REIMB_INTRMY_COLLISION = b"""
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.009.001.08">

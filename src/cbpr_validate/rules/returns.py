@@ -16,7 +16,7 @@ def _is_return(payment: Payment) -> bool:
 
 @register
 def cbpr_rtn_001_return_reason(payment: Payment) -> list[Finding]:
-    """Return reason code must be in ExternalReturnReason1Code — ERROR."""
+    """Return reason code must be in ExternalReturnReason1Code - ERROR."""
     if not _is_return(payment):
         return []
     findings: list[Finding] = []
@@ -41,7 +41,7 @@ def cbpr_rtn_001_return_reason(payment: Payment) -> list[Finding]:
 
 @register
 def cbpr_rtn_002_original_references(payment: Payment) -> list[Finding]:
-    """The six mandatory original-reference fields must be present — ERROR."""
+    """The six mandatory original-reference fields must be present - ERROR."""
     if not _is_return(payment):
         return []
     required: list[tuple[str, object]] = [
@@ -63,7 +63,7 @@ def cbpr_rtn_002_original_references(payment: Payment) -> list[Finding]:
                     location=f"TxInf/OrgnlTxRef/{field}",
                     remediation=f"Populate {field} from the original payment being returned",
                     spec_reference=(
-                        "CBPR+ Usage Guidelines — pacs.004 PaymentReturn (original references)"
+                        "CBPR+ Usage Guidelines - pacs.004 PaymentReturn (original references)"
                     ),
                 )
             )
@@ -72,13 +72,13 @@ def cbpr_rtn_002_original_references(payment: Payment) -> list[Finding]:
 
 @register
 def cbpr_rtn_003_returned_amount(payment: Payment) -> list[Finding]:
-    """Returned interbank settlement amount vs original, net of charges — ERROR/WARN.
+    """Returned interbank settlement amount vs original, net of charges - ERROR/WARN.
 
     CBPR+ requires the returned amount to equal the original interbank
     settlement amount less any charges the returning agents deduct and disclose
     in ChrgsInf. The *exact* permitted charge deduction / rounding tolerance is
     not stated unambiguously in the public guideline material available for this
-    phase, so — rather than invent a numeric tolerance — we take the
+    phase, so - rather than invent a numeric tolerance - we take the
     CONSERVATIVE reading (same discipline as CBPR-ADDR-003):
 
       * returned > original  -> ERROR. A return may never settle for *more* than
@@ -109,7 +109,7 @@ def cbpr_rtn_003_returned_amount(payment: Payment) -> list[Finding]:
                 ),
                 location="TxInf/RtrdIntrBkSttlmAmt",
                 remediation="Return in the original settlement currency",
-                spec_reference="CBPR+ Usage Guidelines — pacs.004 returned amount",
+                spec_reference="CBPR+ Usage Guidelines - pacs.004 returned amount",
             )
         )
         return findings
@@ -125,7 +125,7 @@ def cbpr_rtn_003_returned_amount(payment: Payment) -> list[Finding]:
                 ),
                 location="TxInf/RtrdIntrBkSttlmAmt",
                 remediation="The returned amount must not exceed the original settlement amount",
-                spec_reference="CBPR+ Usage Guidelines — pacs.004 returned amount ≤ original",
+                spec_reference="CBPR+ Usage Guidelines - pacs.004 returned amount <= original",
             )
         )
     elif returned.value < original.value:
@@ -147,7 +147,7 @@ def cbpr_rtn_003_returned_amount(payment: Payment) -> list[Finding]:
                         "Disclose the deducted charges in ChrgsInf so the amounts reconcile"
                     ),
                     spec_reference=(
-                        "CBPR+ Usage Guidelines — pacs.004 returned amount net of charges"
+                        "CBPR+ Usage Guidelines - pacs.004 returned amount net of charges"
                     ),
                 )
             )
@@ -168,7 +168,7 @@ def _total_charges(payment: Payment) -> Decimal | None:
 
 @register
 def cbpr_rtn_004_charges_reconcile(payment: Payment) -> list[Finding]:
-    """If ChrgsInf is present, it must reconcile original vs returned — WARN."""
+    """If ChrgsInf is present, it must reconcile original vs returned - WARN."""
     if not _is_return(payment):
         return []
     original = payment.orgnl_interbank_settlement_amount
@@ -190,7 +190,7 @@ def cbpr_rtn_004_charges_reconcile(payment: Payment) -> list[Finding]:
                 ),
                 location="TxInf/ChrgsInf",
                 remediation="Ensure returned amount + disclosed charges equals the original amount",
-                spec_reference="CBPR+ Usage Guidelines — pacs.004 ChrgsInf reconciliation",
+                spec_reference="CBPR+ Usage Guidelines - pacs.004 ChrgsInf reconciliation",
             )
         )
     return findings
@@ -198,7 +198,7 @@ def cbpr_rtn_004_charges_reconcile(payment: Payment) -> list[Finding]:
 
 @register
 def cbpr_rtn_005_compensation(payment: Payment) -> list[Finding]:
-    """Compensation/interest fields, if present, must be well-formed — INFO."""
+    """Compensation/interest fields, if present, must be well-formed - INFO."""
     if not _is_return(payment):
         return []
     comp = payment.compensation_amount
@@ -216,7 +216,7 @@ def cbpr_rtn_005_compensation(payment: Payment) -> list[Finding]:
                 ),
                 location="TxInf/CompstnAmt",
                 remediation="Provide a positive compensation amount with a 3-letter currency",
-                spec_reference="CBPR+ Usage Guidelines — pacs.004 compensation/interest",
+                spec_reference="CBPR+ Usage Guidelines - pacs.004 compensation/interest",
             )
         )
     return findings

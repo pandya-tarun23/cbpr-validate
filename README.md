@@ -6,12 +6,11 @@ A Python library, CLI, and API for validating ISO 20022 CBPR+ payment messages a
 
 ## Status
 
-Phase 4.5 is now implemented and verified. On top of the Phase 0–4 foundation
-(normalized payment model, parsers for pacs.008/009/002/004, and the address,
-code, amount, structural, agent and return rule groups), this phase adds the
-**cross-message correlation engine** — pairwise, stateless checks that two
-specific messages correctly reference each other. See
-[BUILD_PLAN.md](BUILD_PLAN.md) for the roadmap.
+Phase 5 is now implemented and verified. On top of the Phase 0–4.5 foundation
+(normalized payment model, parsers for pacs.008/009/002/004, the rule groups, and
+the cross-message correlation engine), this phase adds the **three interfaces** —
+a Typer CLI, a FastAPI service, JSON/text/JUnit reporters, and the optional XSD
+layer. See [BUILD_PLAN.md](BUILD_PLAN.md) for the roadmap.
 
 ## Current capabilities
 
@@ -26,7 +25,11 @@ specific messages correctly reference each other. See
   (`CBPR-AGT-002`) — the check most generic validators miss
 - **Correlate two related messages** (COV↔008, 002↔008, 004↔008) on UETR, with a
   flagged legacy fallback, and report amount/party/reference drift between them
-- Execute the test suite and lint/type checks locally
+- Use it three ways — as a **library**, a **CLI**, or a **REST API** — all three
+  producing byte-identical results for the same message
+- Emit **human-readable, JSON, or JUnit-XML** output, so it can gate someone
+  else's CI pipeline
+- Optionally run an **XSD structural pass** against your own licensed schemas
 
 ## Correlation (pairwise, stateless)
 
@@ -54,6 +57,67 @@ that is flagged. For `pacs.002 ↔ pacs.008` the caller must pass
 
 v1 is deliberately **pairwise and stateless**: you supply the two messages to
 compare. A stateful message store is v2 (see BUILD_PLAN §12).
+
+## Interfaces
+
+All three front doors run the same parsing, the same rules and the same
+formatting code. `tests/test_interface_parity.py` compares their actual output
+and fails if they ever diverge.
+
+### CLI
+
+```bash
+cbpr-validate check message.xml                      # human-readable
+cbpr-validate check message.xml --format json        # machine-readable
+cbpr-validate check message.xml --format junit       # CI gate
+cbpr-validate check message.xml --fail-on warn       # tighten the gate
+cbpr-validate check message.xml --xsd --xsd-dir ./schemas
+
+cbpr-validate match pacs009.xml pacs008.xml
+cbpr-validate match pacs002.xml pacs008.xml --direction outbound
+cbpr-validate match pacs004.xml pacs008.xml
+```
+
+Exit codes are part of the contract: `0` clean, `1` findings at or above the
+`--fail-on` threshold (or the two messages do not correlate), `2` the input
+could not be used. Only `ERROR` findings become JUnit `<failure>` elements, so a
+build fails exactly when the message is non-compliant.
+
+### API
+
+```bash
+uvicorn cbpr_validate.api.main:app --reload
+```
+
+`POST /validate` runs every rule against one message; `POST /correlate` takes two
+messages plus an optional `direction`. OpenAPI docs are served at `/docs`.
+
+```bash
+curl -X POST localhost:8000/validate \
+  -H 'content-type: application/json' \
+  -d '{"message": "<Document ...>"}'
+```
+
+### Library
+
+```python
+from cbpr_validate.parsers.parse import parse_message
+from cbpr_validate.rules.registry import run_all
+
+result = run_all(parse_message(xml_bytes))
+result.is_compliant, result.errors, result.warnings
+```
+
+## The optional XSD layer
+
+No SWIFT schema is shipped or committed here. Point `CBPR_VALIDATE_XSD_DIR` (or
+`--xsd-dir`) at your own licensed copy of the ISO 20022 message definitions and
+schema files are matched by message family. If a schema cannot be located the
+command **fails loudly** rather than silently reporting "clean" — you asked for
+the layer, so pretending it ran would be a lie.
+
+This layer is deliberately secondary. The schema is the floor; the usage
+guidelines are the bar.
 
 ## Rule groups
 

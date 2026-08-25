@@ -11,6 +11,8 @@ def test_version_is_set() -> None:
 
 
 def test_cli_version_command() -> None:
-    result = runner.invoke(app, [])
+    # The CLI grew subcommands in Phase 5, so the version now has to be asked
+    # for by name; a bare invocation prints help.
+    result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert cbpr_validate.__version__ in result.stdout
