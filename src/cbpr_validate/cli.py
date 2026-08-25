@@ -20,6 +20,7 @@ from typing import Annotated
 
 import typer
 
+from cbpr_validate.core import validate_file as validate_message_file
 from cbpr_validate.match.matcher import UnsupportedPairError, correlate
 from cbpr_validate.match.result import Direction
 from cbpr_validate.model.payment import Payment
@@ -52,6 +53,14 @@ class FailOn(StrEnum):
     ERROR = "error"
     WARN = "warn"
     NEVER = "never"
+
+
+class FailOnLevel(StrEnum):
+    """Threshold for `validate`. Narrower on purpose: a gate wants a floor, not
+    an off switch, so there is no "never" here."""
+
+    ERROR = "error"
+    WARNING = "warning"
 
 
 MessageArgument = Annotated[
@@ -90,6 +99,46 @@ def _should_fail(result: ValidationResult, fail_on: FailOn) -> bool:
     if fail_on is FailOn.WARN:
         return bool(result.errors or result.warnings)
     return bool(result.errors)
+
+
+@app.command()
+def validate(
+    message: MessageArgument,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Emit the result as JSON instead of text.")
+    ] = False,
+    fail_on: Annotated[
+        FailOnLevel,
+        typer.Option("--fail-on", help="Lowest severity that makes this command exit 1."),
+    ] = FailOnLevel.ERROR,
+) -> None:
+    """Validate a message against the CBPR+ usage guidelines.
+
+    Goes through ``cbpr_validate.core.validate_file``, so an unreadable,
+    malformed or unrecognised document is reported as an ``ORCH-*`` finding and
+    still exits 1 - never a traceback.
+    """
+    result = validate_message_file(message)
+
+    if as_json:
+        typer.echo(validation_to_json(result))
+    else:
+        for finding in result.findings:
+            line = f"{finding.rule_id} | {finding.severity.value} | {finding.message}"
+            if finding.location:
+                line += f" | {finding.location}"
+            typer.echo(line)
+        errors = len(result.errors)
+        warnings = len(result.warnings)
+        infos = len(result.findings) - errors - warnings
+        verdict = "COMPLIANT" if result.is_compliant else "NOT COMPLIANT"
+        typer.echo(
+            f"{len(result.findings)} finding(s): {errors} error, {warnings} warn, "
+            f"{infos} info - {verdict}"
+        )
+
+    tripped = result.errors or (fail_on is FailOnLevel.WARNING and result.warnings)
+    raise typer.Exit(EXIT_FINDINGS if tripped else EXIT_OK)
 
 
 @app.command()

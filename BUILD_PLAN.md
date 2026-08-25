@@ -409,6 +409,43 @@ Verified outside the test harness as well: the installed console script against 
 
 Coverage on the new modules is 100% (`cli.py`, `api/main.py`, `config.py`, `parsers/parse.py`, `schema/xsd.py`, and all three reporters).
 
+**Phase 5 addendum - the library front door.** Phase 5 shipped three *interfaces*
+but no single-call *library* entry point: a caller had to know to write
+`run_all(parse_message(data))`, catch `UnsupportedMessageTypeError` themselves,
+and `__init__.py` exported nothing but `__version__`. Closed by:
+
+- [src/cbpr_validate/core.py](src/cbpr_validate/core.py) - `validate_file`,
+  `validate_string`, `validate_bytes`. Detect -> dispatch -> `run_all`, reusing
+  `parsers/parse.py` and the registry rather than reimplementing either.
+- These **never raise**. Unreadable, malformed and unrecognised documents each
+  return a `ValidationResult` carrying one ERROR finding - `ORCH-READ-ERROR`,
+  `ORCH-PARSE-ERROR`, `ORCH-UNSUPPORTED` respectively - so a caller has one
+  shape to handle and `is_compliant` is false either way. The `ORCH-` prefix is
+  deliberate: "we could not evaluate this" must never be mistaken for "this
+  message breaks a usage guideline".
+- `detect_message_type` collapses malformed and unrecognised into a single
+  `None`; core probes well-formedness separately so the two are reported
+  distinctly - they need completely different fixes.
+- `__init__.py` exports the three functions, so `from cbpr_validate import
+  validate_file` works. `__version__` is retained.
+- CLI gained `validate <file> [--json] [--fail-on error|warning]`, built on
+  `core.validate_file`, alongside the existing `check`/`match`/`version`.
+
+**Open design question (not decided here):** `validate` and `check` now overlap -
+both validate one file, with different flag vocabularies (`--json` vs
+`--format`, `error|warning` vs `error|warn|never`). They share the rules and the
+JSON envelope (pinned by `test_validate_json_matches_the_check_command`), so
+there is no logic duplication, but two commands for one job is a wart worth
+resolving before v1.0.0. Flagged, not silently resolved.
+
+```bash
+python -m pytest -q            # 192 passed
+python -m ruff check src tests # clean
+python -m mypy src tests       # clean
+```
+
+`core.py` and `cli.py` are both at 100% coverage; total coverage held at 99%.
+
 **Phase 6 — Productionise + publish (1 week)**
 Dockerfile, mkdocs site, README polish, badges, benchmark, TestPyPI → PyPI, tag v1.0.0. *DoD: clean install + run by someone other than you.*
 

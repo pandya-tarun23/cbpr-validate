@@ -4,6 +4,39 @@ A Python library, CLI, and API for validating ISO 20022 CBPR+ payment messages a
 
 > XSD-valid ≠ CBPR+-compliant.
 
+## Quickstart
+
+```bash
+pip install cbpr-validate
+cbpr-validate validate payment.xml
+```
+
+```text
+CBPR-ADDR-005 | INFO | Address classification for Dbtr: structured | Dbtr.PstlAdr
+CBPR-ADDR-005 | INFO | Address classification for Cdtr: unstructured | Cdtr.PstlAdr
+CBPR-ADDR-001 | ERROR | Unstructured-only address (AdrLine without TwnNm/Ctry) | Cdtr.PstlAdr
+CBPR-ADDR-002 | ERROR | Minimum gate: TownName and Country must be present | Cdtr.PstlAdr
+4 finding(s): 2 error, 0 warn, 2 info - NOT COMPLIANT
+```
+
+Exit code is `0` when clean and `1` when anything at or above the `--fail-on`
+threshold fires (default `error`), so it drops straight into a pipeline. Add
+`--json` for machine-readable output.
+
+From Python, one call does the same thing:
+
+```python
+from cbpr_validate import validate_file
+
+result = validate_file("payment.xml")
+result.is_compliant          # False
+[f.rule_id for f in result.errors]
+```
+
+`validate_file`, `validate_string` and `validate_bytes` never raise: an
+unreadable, malformed or unrecognised document comes back as a result carrying a
+single `ORCH-*` ERROR finding, so there is one shape to handle.
+
 ## Status
 
 Phase 5 is now implemented and verified. On top of the Phase 0–4.5 foundation
@@ -67,6 +100,10 @@ and fails if they ever diverge.
 ### CLI
 
 ```bash
+cbpr-validate validate message.xml                   # single-file front door
+cbpr-validate validate message.xml --json
+cbpr-validate validate message.xml --fail-on warning
+
 cbpr-validate check message.xml                      # human-readable
 cbpr-validate check message.xml --format json        # machine-readable
 cbpr-validate check message.xml --format junit       # CI gate
@@ -77,6 +114,10 @@ cbpr-validate match pacs009.xml pacs008.xml
 cbpr-validate match pacs002.xml pacs008.xml --direction outbound
 cbpr-validate match pacs004.xml pacs008.xml
 ```
+
+`validate` is the one-file front door built on `cbpr_validate.core`; `check` is
+the fuller command that adds `--format junit` and the optional `--xsd` pass, and
+`match` correlates two messages.
 
 Exit codes are part of the contract: `0` clean, `1` findings at or above the
 `--fail-on` threshold (or the two messages do not correlate), `2` the input

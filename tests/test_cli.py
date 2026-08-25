@@ -184,3 +184,111 @@ def test_main_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(SystemExit) as exc:
         main()
     assert exc.value.code == EXIT_OK
+
+
+# --- validate ---------------------------------------------------------------
+#
+# `validate` is the single-file front door built on cbpr_validate.core: it takes
+# no XSD or correlation options, and reports orchestration failures as ORCH-*
+# findings (exit 1) rather than as CLI input errors (exit 2).
+
+
+def test_validate_clean_message_exits_zero(pacs008_clean: Path) -> None:
+    result = runner.invoke(app, ["validate", str(pacs008_clean)])
+    assert result.exit_code == EXIT_OK
+    assert "COMPLIANT" in result.stdout
+    assert "NOT COMPLIANT" not in result.stdout
+
+
+def test_validate_catches_a_known_violation(pacs008_unstructured: Path) -> None:
+    result = runner.invoke(app, ["validate", str(pacs008_unstructured)])
+    assert result.exit_code == EXIT_FINDINGS
+    assert "CBPR-ADDR-001 | ERROR |" in result.stdout
+    assert "CBPR-ADDR-002 | ERROR |" in result.stdout
+    assert "NOT COMPLIANT" in result.stdout
+
+
+def test_validate_prints_location_when_present(pacs008_unstructured: Path) -> None:
+    result = runner.invoke(app, ["validate", str(pacs008_unstructured)])
+    assert "| Cdtr.PstlAdr" in result.stdout
+
+
+def test_validate_summary_line_counts_by_severity(pacs008_unstructured: Path) -> None:
+    result = runner.invoke(app, ["validate", str(pacs008_unstructured)])
+    assert "4 finding(s): 2 error, 0 warn, 2 info - NOT COMPLIANT" in result.stdout
+
+
+def test_validate_json_is_valid_json(pacs008_unstructured: Path) -> None:
+    result = runner.invoke(app, ["validate", str(pacs008_unstructured), "--json"])
+    assert result.exit_code == EXIT_FINDINGS
+    payload = json.loads(result.stdout)
+    assert payload["is_compliant"] is False
+    assert {f["rule_id"] for f in payload["findings"]} >= {"CBPR-ADDR-001", "CBPR-ADDR-002"}
+
+
+def test_validate_json_matches_the_check_command(pacs008_unstructured: Path) -> None:
+    """Both commands run the same rules, so their JSON must agree."""
+    via_validate = runner.invoke(app, ["validate", str(pacs008_unstructured), "--json"])
+    via_check = runner.invoke(
+        app, ["check", str(pacs008_unstructured), "--format", "json"]
+    )
+    assert json.loads(via_validate.stdout) == json.loads(via_check.stdout)
+
+
+def test_validate_fail_on_warning_is_not_tripped_by_info(pacs008_clean: Path) -> None:
+    result = runner.invoke(app, ["validate", str(pacs008_clean), "--fail-on", "warning"])
+    assert result.exit_code == EXIT_OK
+
+
+def test_validate_fail_on_warning_trips_on_a_warning(tmp_path: Path) -> None:
+    # A pacs.004 whose returned amount is unexplained by disclosed charges:
+    # CBPR-RTN-003 WARN, no ERROR. Default gate passes it; --fail-on warning does not.
+    from tests.conftest import PACS004
+
+    path = tmp_path / "warn.xml"
+    path.write_bytes(
+        PACS004.replace(b'<Amt Ccy="EUR">10.00</Amt>', b'<Amt Ccy="EUR">1.00</Amt>')
+    )
+    baseline = runner.invoke(app, ["validate", str(path), "--json"])
+    payload = json.loads(baseline.stdout)
+    assert payload["summary"]["ERROR"] == 0 and payload["summary"]["WARN"] >= 1
+
+    assert runner.invoke(app, ["validate", str(path)]).exit_code == EXIT_OK
+    assert (
+        runner.invoke(app, ["validate", str(path), "--fail-on", "warning"]).exit_code
+        == EXIT_FINDINGS
+    )
+
+
+def test_validate_rejects_an_invalid_fail_on_value(pacs008_clean: Path) -> None:
+    result = runner.invoke(app, ["validate", str(pacs008_clean), "--fail-on", "never"])
+    assert result.exit_code != EXIT_OK  # `never` belongs to `check`, not `validate`
+
+
+def test_validate_reports_malformed_xml_without_crashing(tmp_path: Path) -> None:
+    path = tmp_path / "broken.xml"
+    path.write_bytes(b"<Document><unclosed>")
+    result = runner.invoke(app, ["validate", str(path)])
+    assert result.exit_code == EXIT_FINDINGS
+    assert "ORCH-PARSE-ERROR | ERROR |" in result.stdout
+    assert not isinstance(result.exception, Exception)  # SystemExit only, no traceback
+
+
+def test_validate_reports_an_unsupported_message_without_crashing(
+    not_a_message: Path,
+) -> None:
+    result = runner.invoke(app, ["validate", str(not_a_message)])
+    assert result.exit_code == EXIT_FINDINGS
+    assert "ORCH-UNSUPPORTED | ERROR |" in result.stdout
+    assert not isinstance(result.exception, Exception)  # SystemExit only, no traceback
+
+
+def test_validate_missing_file_is_caught_by_the_argument(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["validate", str(tmp_path / "absent.xml")])
+    assert result.exit_code == EXIT_INPUT_ERROR  # Typer's exists=True, before core
+
+
+def test_validate_appears_in_help() -> None:
+    result = runner.invoke(app, [])
+    for command in ("validate", "check", "match", "version"):
+        assert command in result.stdout
