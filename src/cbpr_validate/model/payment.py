@@ -41,6 +41,14 @@ class Payment(BaseModel):
     instr_id: str | None = None
     tx_id: str | None = None
     amount: Amount | None = None
+    # --- Phase 4.5: identifiers/amount the correlation engine matches on ---
+    # msg_id is the GrpHdr MsgId a pacs.002/pacs.004 echoes back as OrgnlMsgId;
+    # end_to_end_id is the UETR fallback for legacy/non-CBPR+ references.
+    # interbank_settlement_amount is kept distinct from `amount` (InstdAmt on a
+    # pacs.008) so correlation only ever compares like with like.
+    msg_id: str | None = None
+    end_to_end_id: str | None = None
+    interbank_settlement_amount: Amount | None = None
     dbtr: Party | None = None
     cdtr: Party | None = None
     dbtr_agt: Agent | None = None

@@ -44,6 +44,18 @@ def parse_pacs008(xml_bytes: bytes) -> Payment:
             value = Decimal('0')
         amount = Amount(value=value, currency=currency)
 
+    # interbank settlement amount — distinct from InstdAmt once charges apply,
+    # and the amount cross-message correlation compares (Phase 4.5).
+    sttlm = root.find('.//{*}IntrBkSttlmAmt')
+    interbank_settlement_amount = None
+    if sttlm is not None and sttlm.text and sttlm.get('Ccy'):
+        try:
+            interbank_settlement_amount = Amount(
+                value=Decimal(sttlm.text.strip()), currency=sttlm.get('Ccy')
+            )
+        except Exception:
+            interbank_settlement_amount = None
+
     # debtor/creditor
     dbtr_nm = _text(root.find('.//{*}Dbtr/{*}Nm'))
     cdtr_nm = _text(root.find('.//{*}Cdtr/{*}Nm'))
@@ -76,8 +88,16 @@ def parse_pacs008(xml_bytes: bytes) -> Payment:
     cdtr_agt = _parse_agent('CdtrAgt')
 
     payment = Payment(
+        # message_type identifies the message to the rule registry and to the
+        # correlation engine; without it the pacs.008-specific rules never fire.
+        message_type='pacs.008',
         uetr=uetr,
+        msg_id=_text(root.find('.//{*}GrpHdr/{*}MsgId')),
+        instr_id=_text(root.find('.//{*}PmtId/{*}InstrId')),
+        tx_id=_text(root.find('.//{*}PmtId/{*}TxId')),
+        end_to_end_id=_text(root.find('.//{*}PmtId/{*}EndToEndId')),
         amount=amount,
+        interbank_settlement_amount=interbank_settlement_amount,
         dbtr=dbtr,
         cdtr=cdtr,
         dbtr_agt=dbtr_agt,

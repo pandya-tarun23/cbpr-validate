@@ -32,8 +32,10 @@ def _parse_underlying(tx: etree._Element) -> Payment | None:
         uetr=find_text(node, ".//{*}PmtId/{*}UETR"),
         instr_id=find_text(node, ".//{*}PmtId/{*}InstrId"),
         tx_id=find_text(node, ".//{*}PmtId/{*}TxId"),
+        end_to_end_id=find_text(node, ".//{*}PmtId/{*}EndToEndId"),
         amount=parse_amount(node.find(".//{*}InstdAmt"))
         or parse_amount(node.find(".//{*}IntrBkSttlmAmt")),
+        interbank_settlement_amount=parse_amount(node.find(".//{*}IntrBkSttlmAmt")),
         dbtr=parse_party(node.find("{*}Dbtr")),
         cdtr=parse_party(node.find("{*}Cdtr")),
         dbtr_agt=parse_agent(node, "DbtrAgt"),
@@ -54,9 +56,12 @@ def parse_pacs009(xml_bytes: bytes) -> Payment:
     return Payment(
         message_type="pacs.009",
         uetr=find_text(base, ".//{*}PmtId/{*}UETR"),
+        msg_id=find_text(grp, "{*}MsgId"),
         instr_id=find_text(base, ".//{*}PmtId/{*}InstrId"),
         tx_id=find_text(base, ".//{*}PmtId/{*}TxId"),
+        end_to_end_id=find_text(base, ".//{*}PmtId/{*}EndToEndId"),
         amount=parse_amount(base.find(".//{*}IntrBkSttlmAmt")),
+        interbank_settlement_amount=parse_amount(base.find(".//{*}IntrBkSttlmAmt")),
         dbtr=parse_party(base.find("{*}Dbtr")),
         cdtr=parse_party(base.find("{*}Cdtr")),
         dbtr_agt=parse_agent(base, "DbtrAgt"),

@@ -15,24 +15,31 @@ traceable rules, honest gaps) matters as much as the functionality.
 
 ## Current status
 
-Phases 0–3 are complete and on `main`, verified green.
+Phases 0–4.5 are complete and on `main`, verified green.
 - Phase 0: skeleton + CI.
 - Phase 1: version-agnostic Pydantic model, `pacs.008` parser, `detect.py`.
 - Phase 2: rule registry (`run_all`), address rule group.
 - Phase 3: codes/amounts/structural rules + committed ISO 20022 code-set
   snapshot loader (`codesets/loader.py`, `codesets/data/iso20022_codesets.json`).
-- Plus an adversarial test pinning `CBPR-ADDR-002` on a partial address.
+- Phase 4: `pacs.009` (core + COV), `pacs.002`, `pacs.004` parsers; `agents.py`
+  (incl. the headline `CBPR-AGT-002` COV rule) and `returns.py`.
+- Phase 4.5: pairwise correlation engine (`match/matcher.py`, `match/result.py`)
+  — `CBPR-COR-001/002/003`, keyed on UETR with a flagged legacy fallback.
 
-**Next: Phase 4** (pacs.009 COV + pacs.002 + pacs.004 + agents + returns).
+**Next: Phase 5** (CLI + FastAPI + JSON/text/JUnit reporters, optional XSD layer).
 
 ## Carried-over decisions — do NOT re-litigate
 
 - `CBPR-ADDR-003` (hybrid line-count cap) is **intentionally unregistered** —
   the cap is ambiguous in available guideline material and we refuse to guess.
   Leave it unregistered until the cap is confirmed.
-- `CBPR-COD-004` is currently tested by constructing the model directly because
-  no `pacs.002` parser existed. Phase 4 adds that parser — upgrade the test to
-  use a real parsed `pacs.002` and remove the workaround.
+- `CBPR-COD-004` now runs against a real parsed `pacs.002`; the Phase 3
+  direct-construction workaround was removed in Phase 4. Done — don't revisit.
+- Correlation returns `MatchResult`, **not** `ValidationResult`, and lives
+  outside `run_all()`. It is pairwise and stateless by design; a stateful
+  `MessageStore` is v2, not a gap to close.
+- `direction` is **required** for the `pacs.002 ↔ pacs.008` correlation and has
+  no default. The tool must never infer whose message it is from BICs.
 
 ## Operating rules (these are non-negotiable)
 

@@ -355,6 +355,30 @@ New rule IDs and severities: `CBPR-AGT-001` (WARN), `CBPR-AGT-002` (ERROR), `CBP
 **Phase 4.5 — Correlation engine (0.5–1 week)**
 `match/matcher.py` + `MatchResult` (§6): COV↔008, 002↔008 (bidirectional via `direction`), 004↔008, all keyed primarily on UETR. *DoD: each of the three scenarios passes fixtures for both a clean match and a deliberately mismatched pair (wrong UETR, amount drift).*
 
+Status: **Completed** ✅
+
+What was delivered:
+- `MatchResult` / `MessageRef` plus `Scenario`, `Direction` and `MatchKey` enums ([src/cbpr_validate/match/result.py](src/cbpr_validate/match/result.py)). `MatchResult` exposes `errors`, `warnings` and `is_consistent` (linked **and** nothing about the link in error) — deliberately a different type from `ValidationResult`, because it describes a relationship between two messages rather than a property of one.
+- `correlate(a, b, direction=None)` ([src/cbpr_validate/match/matcher.py](src/cbpr_validate/match/matcher.py)) infers the scenario from the pair of message types in either argument order, and raises `UnsupportedPairError` for anything outside the three v1 scenarios:
+  - `CBPR-COR-001` **pacs.009 COV ↔ originating pacs.008** — matched on the embedded `UndrlygCstmrCdtTrf` UETR; on match, cross-checks settlement amount/currency (ERROR) and Dbtr/Cdtr names (WARN). A core pacs.009 (no underlying) is reported as *not a COV* rather than silently unmatched.
+  - `CBPR-COR-002` **pacs.002 ↔ pacs.008** — matched on `OrgnlUETR`; cross-checks the echoed `OrgnlMsgId`/`OrgnlTxId`/`OrgnlEndToEndId` against the original (WARN — the link itself is already established by the key). `direction` is **required** and raises if omitted: the tool never infers identity from BICs, so there is no safe default.
+  - `CBPR-COR-003` **pacs.004 ↔ original pacs.008** — matched on `OrgnlUETR`; cross-checks the return's *declared* `OrgnlIntrBkSttlmAmt` against the pacs.008's actual settlement amount, and the returned amount against that actual original (both ERROR). This is the cross-message complement to `CBPR-RTN-003`: a return can be internally consistent and still misstate the original.
+- UETR is always tried first; `OrgnlTxId` then `OrgnlEndToEndId` are used only when a UETR is absent on one side, and the result carries `fallback_used=True` and the `match_key` actually used. Two UETRs that *disagree* are a genuine non-match, never a reason to try a weaker key.
+- Amount comparison is strictly like-for-like (`IntrBkSttlmAmt` vs `IntrBkSttlmAmt`, or `InstdAmt` vs `InstdAmt`); where no comparable pair exists the engine emits nothing rather than manufacture a false mismatch from a charges-deducted difference.
+- Model + parser support for the identifiers correlation needs: `msg_id`, `end_to_end_id` and a distinct `interbank_settlement_amount` on `Payment`, populated by the pacs.008 and pacs.009 parsers.
+- **Fix carried in this phase:** `parsers/pacs008.py` never set `message_type`, so `CBPR-STR-003` and `CBPR-AGT-001` (both gated on `message_type == "pacs.008"`) silently never fired for a parsed pacs.008. It is now set, which also lets the correlator identify the message.
+- Adversarial coverage for all three scenarios ([tests/test_match_correlation.py](tests/test_match_correlation.py)): wrong UETR, amount drift, currency drift, party drift, mis-echoed references, a core pacs.009 offered as a COV, an unlinkable pair, both legacy fallbacks, and unsupported pairs.
+
+How to verify locally:
+
+```bash
+python -m pytest -q            # 76 passed
+python -m ruff check src tests # clean
+python -m mypy src tests       # clean
+```
+
+New correlation IDs and severities: `CBPR-COR-001` (ERROR no-link / ERROR amount / WARN party), `CBPR-COR-002` (ERROR no-link / WARN reference drift), `CBPR-COR-003` (ERROR no-link / ERROR amount / WARN reference drift). Coverage on the new modules is 100% (`match/matcher.py`, `match/result.py`).
+
 **Phase 5 — Interfaces (1 week)**
 CLI (Typer: `check`, `match`), FastAPI service (`/validate`, `/correlate`), JSON/text/JUnit reporters, optional XSD layer. *DoD: all three interfaces validate and correlate the same messages identically.*
 
