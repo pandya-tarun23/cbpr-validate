@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-SNAPSHOT_VERSION = "iso20022-codesets-2026-06"
+# Revision marker rather than a new date: the ISO 20022 External Code Set
+# vintage is unchanged: only the ISO 3166-1 alpha-2 list was completed, from a
+# 10-country stub to the full 249 officially assigned codes. Dating it 2026-08
+# would claim a code-set release that did not happen.
+SNAPSHOT_VERSION = "iso20022-codesets-2026-06-r2"
 _DATA_PATH = Path(__file__).resolve().parent / "data" / "iso20022_codesets.json"
 
 
