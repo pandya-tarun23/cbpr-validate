@@ -76,14 +76,18 @@ def cbpr_str_003_mandatory_elements(payment: Payment) -> list[Finding]:
                 spec_reference="CBPR+ pacs.008 mandatory elements",
             )
         )
-    if not payment.amount:
+    # IntrBkSttlmAmt is the mandatory amount on a pacs.008 (1..1). InstdAmt is
+    # OPTIONAL (0..1), so its absence is not a defect - checking it here marked
+    # genuinely compliant messages non-compliant. Any conditional InstdAmt
+    # requirement is a separate rule, deliberately not folded in here.
+    if not payment.interbank_settlement_amount:
         findings.append(
             Finding(
                 rule_id="CBPR-STR-003",
                 severity=Severity.ERROR,
-                message="Mandatory amount element is missing for pacs.008",
-                location="InstdAmt",
-                remediation="Populate the payment amount",
+                message="Mandatory IntrBkSttlmAmt is missing for pacs.008",
+                location="IntrBkSttlmAmt",
+                remediation="Populate the interbank settlement amount",
                 spec_reference="CBPR+ pacs.008 mandatory elements",
             )
         )
