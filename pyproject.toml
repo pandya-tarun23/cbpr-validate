@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cbpr-validate"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Validate ISO 20022 CBPR+ payment messages against the usage guidelines, not just the XSD."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,6 +28,12 @@ dev = [
 
 [project.scripts]
 cbpr-validate = "cbpr_validate.cli:main"
+
+# Single source of truth: the version lives in the package, and the build
+# reads it from there. Declaring it in both places let them drift - the wheel
+# said one thing while /health and `cbpr-validate version` said another.
+[tool.hatch.version]
+path = "src/cbpr_validate/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cbpr_validate"]
