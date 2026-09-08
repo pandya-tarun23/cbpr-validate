@@ -1,0 +1,123 @@
+name: Release
+
+# Publishes to PyPI via Trusted Publishing (OIDC) - no API token is stored in
+# the repo or on anyone's laptop. PyPI verifies the workflow identity instead.
+#
+#   push a v* tag      -> publish to PyPI
+#   run manually       -> publish to TestPyPI (or PyPI, if you pick it)
+#
+# A PyPI release is permanent: a version number can never be reused, even after
+# deletion. So everything that can be checked is checked before the upload -
+# the full test matrix, the tag/version agreement, and an install of the actual
+# built wheel.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to publish"
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+
+permissions:
+  contents: read
+
+jobs:
+  # Never publish a red build. Same matrix as CI, because "it passed on main"
+  # is not the same claim as "this tag passes".
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src
+      - run: pytest
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+
+      # The version lives in the package and the tag is written by hand, so
+      # they can disagree. Catching that here costs seconds; catching it after
+      # an upload costs the version number.
+      - name: Tag must match the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(python -c "import re,pathlib; \
+            print(re.search(r'__version__ = \"([^\"]+)\"', \
+            pathlib.Path('src/cbpr_validate/__init__.py').read_text()).group(1))")
+          echo "tag=$TAG package=$PKG"
+          test "$TAG" = "$PKG" || { echo "::error::tag v$TAG != package $PKG"; exit 1; }
+
+      # A wheel can pass every test and still be broken on install - most often
+      # because a package-data file (here the ISO 20022 code-set snapshot) was
+      # left out of it. So exercise the artifact itself, not the source tree.
+      - name: Smoke-test the built wheel
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --quiet dist/*.whl
+          /tmp/smoke/bin/python -c "import cbpr_validate; print(cbpr_validate.__version__)"
+          /tmp/smoke/bin/python -c "from cbpr_validate.codesets.loader import get_codes; \
+            n=len(get_codes('ISO3166-1-alpha-2')); print('country codes:', n); assert n > 200"
+          /tmp/smoke/bin/cbpr-validate validate tests/fixtures/pacs008_valid_hybrid_ro.xml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-testpypi:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/cbpr-validate
+    permissions:
+      id-token: write # the OIDC token Trusted Publishing exchanges for an upload
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/cbpr-validate
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
