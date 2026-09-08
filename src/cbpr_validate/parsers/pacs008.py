@@ -11,6 +11,7 @@ from cbpr_validate.model.payment import (
     Payment,
     PostalAddress,
 )
+from cbpr_validate.parsers._common import parse_agent_element
 
 NSMAP = {None: "urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08"}
 
@@ -77,12 +78,12 @@ def parse_pacs008(xml_bytes: bytes) -> Payment:
     dbtr = Party(name=dbtr_nm, postal_address=_parse_address('Dbtr'))
     cdtr = Party(name=cdtr_nm, postal_address=_parse_address('Cdtr'))
 
-    # agents/BICs
+    # Agents. This used to be a local BIC-only copy of the shared helper, so a
+    # real CBPR+ message (which carries BICFI) produced no agent at all and
+    # CBPR-STR-002 / CBPR-AGT-001 / CBPR-AGT-003 quietly never ran. Reuse the
+    # shared extraction instead of keeping a second, weaker one in sync.
     def _parse_agent(tag: str) -> Agent | None:
-        bic = _text(root.find(f'.//{{*}}{tag}/{{*}}FinInstnId/{{*}}BIC'))
-        if bic:
-            return Agent(bic=bic)
-        return None
+        return parse_agent_element(root.find(f'.//{{*}}{tag}'))
 
     dbtr_agt = _parse_agent('DbtrAgt')
     cdtr_agt = _parse_agent('CdtrAgt')

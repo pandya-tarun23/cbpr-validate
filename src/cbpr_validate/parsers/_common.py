@@ -70,15 +70,14 @@ def parse_party(party_node: etree._Element | None) -> Party | None:
     return Party(name=name, postal_address=address, lei=lei)
 
 
-def parse_agent(parent: etree._Element | None, tag: str) -> Agent | None:
-    """Parse a financial-institution agent found at ``parent/<tag>``.
+def parse_agent_element(node: etree._Element | None) -> Agent | None:
+    """Parse an agent from its own element, wherever it was found.
 
-    Supports both ``BICFI`` (pacs.009/002/004) and legacy ``BIC`` (pacs.008),
-    plus an optional ``LEI``.
+    Reads ``BICFI`` first and falls back to the legacy ``BIC``. Real CBPR+
+    pacs.008 traffic carries ``BICFI``: a parser that only looks for ``BIC``
+    silently yields no agent, which makes every agent rule a no-op instead of a
+    failure - a false negative, and harder to notice than a false positive.
     """
-    if parent is None:
-        return None
-    node = parent.find(f"{{*}}{tag}")
     if node is None:
         return None
     fin = node.find(".//{*}FinInstnId")
@@ -89,3 +88,10 @@ def parse_agent(parent: etree._Element | None, tag: str) -> Agent | None:
     if bic is None and lei is None and name is None:
         return None
     return Agent(bic=bic, name=name, lei=lei)
+
+
+def parse_agent(parent: etree._Element | None, tag: str) -> Agent | None:
+    """Parse a financial-institution agent found at ``parent/<tag>``."""
+    if parent is None:
+        return None
+    return parse_agent_element(parent.find(f"{{*}}{tag}"))
