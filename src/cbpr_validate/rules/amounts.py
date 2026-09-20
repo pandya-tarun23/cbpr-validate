@@ -2,33 +2,43 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from cbpr_validate.codesets.loader import is_valid
 from cbpr_validate.model.finding import Finding, Severity
 from cbpr_validate.model.payment import Payment
 from cbpr_validate.rules.registry import register
 
-_FRACTION_DIGITS = {
-    "AUD": 2,
-    "CAD": 2,
-    "CHF": 2,
-    "EUR": 2,
-    "GBP": 2,
-    "JPY": 0,
-    "USD": 2,
+# ISO 4217 minor units (decimal places). Default is 2; only the exceptions are
+# listed here. Validity of the currency itself is a *separate* concern handled
+# by CBPR-AMT-001 against the full ISO4217 code set — this map is only about how
+# many decimals a (valid) currency is allowed.
+_ZERO_DECIMAL = {
+    "BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW",
+    "PYG", "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF",
 }
+_THREE_DECIMAL = {"BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"}
+
+
+def _expected_decimals(currency: str) -> int:
+    if currency in _ZERO_DECIMAL:
+        return 0
+    if currency in _THREE_DECIMAL:
+        return 3
+    return 2  # ISO 4217 default
 
 
 @register
 def cbpr_amt_001_currency(payment: Payment) -> list[Finding]:
+    """Currency must be a recognised ISO 4217 code (full code set)."""
     findings: list[Finding] = []
     currency = payment.amount.currency if payment.amount else None
-    if currency and currency not in _FRACTION_DIGITS:
+    if currency and not is_valid("ISO4217", currency):
         findings.append(
             Finding(
                 rule_id="CBPR-AMT-001",
                 severity=Severity.ERROR,
                 message="Currency is not a recognised ISO 4217 currency",
                 location="Amount.Currency",
-                remediation="Use a supported ISO 4217 currency code",
+                remediation="Use a valid ISO 4217 currency code",
                 spec_reference="ISO 4217 currency code list",
             )
         )
@@ -37,34 +47,29 @@ def cbpr_amt_001_currency(payment: Payment) -> list[Finding]:
 
 @register
 def cbpr_amt_002_fractional_digits(payment: Payment) -> list[Finding]:
+    """Amount must not carry more decimals than the currency's minor units."""
     findings: list[Finding] = []
     if not payment.amount:
         return findings
     currency = payment.amount.currency
     value = payment.amount.value
-    expected_digits = _FRACTION_DIGITS.get(currency)
-    if expected_digits is None:
+    # An unknown currency is already reported by CBPR-AMT-001; don't double-flag.
+    if not currency or not is_valid("ISO4217", currency):
         return findings
-    if currency == "JPY" and value != int(value):
+    expected = _expected_decimals(currency)
+    quantum = Decimal(1).scaleb(-expected)  # 1, 0.1, 0.01, 0.001 ...
+    if value != value.quantize(quantum):
         findings.append(
             Finding(
                 rule_id="CBPR-AMT-002",
                 severity=Severity.ERROR,
-                message="JPY amounts must be whole numbers without decimals",
+                message=(
+                    f"Amount has more decimal places than {currency} allows "
+                    f"(max {expected})"
+                ),
                 location="Amount",
-                remediation="Use an integer amount for JPY",
-                spec_reference="ISO 4217 / CBPR+ amount formatting",
-            )
-        )
-    elif expected_digits == 2 and value != value.quantize(Decimal("0.01")):
-        findings.append(
-            Finding(
-                rule_id="CBPR-AMT-002",
-                severity=Severity.ERROR,
-                message="Amount fractional digits do not match the currency convention",
-                location="Amount",
-                remediation="Use the expected number of decimal places for the currency",
-                spec_reference="ISO 4217 / CBPR+ amount formatting",
+                remediation=f"Use at most {expected} decimal place(s) for {currency}",
+                spec_reference="ISO 4217 minor units / CBPR+ amount formatting",
             )
         )
     return findings
@@ -72,6 +77,7 @@ def cbpr_amt_002_fractional_digits(payment: Payment) -> list[Finding]:
 
 @register
 def cbpr_amt_003_positive_amount(payment: Payment) -> list[Finding]:
+    """Amount must be greater than zero."""
     findings: list[Finding] = []
     if payment.amount and payment.amount.value <= 0:
         findings.append(
