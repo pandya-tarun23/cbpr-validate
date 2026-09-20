@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe *)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('src/cbpr_validate/codesets/data/iso20022_codesets.json'\\)\\); print\\('RETURN', sorted\\(d['ExternalReturnReason1Code']\\)\\); print\\('STATUS', sorted\\(d['ExternalStatusReason1Code']\\)\\); print\\('ISO3166', sorted\\(d['ISO3166-1-alpha-2']\\)\\)\")",
+      "Bash(python -m pytest -q)",
+      "Bash(python -m pip install -q pytest pytest-cov ruff mypy)",
+      "Bash(./.venv/Scripts/python.exe -m mypy src tests)",
+      "Bash(./.venv/Scripts/python.exe -m pytest -q)",
+      "Bash(./.venv/Scripts/python.exe -m ruff check src tests)",
+      "Bash(./.venv/Scripts/python.exe -)",
+      "Bash(./.venv/Scripts/cbpr-validate.exe check *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(./.venv/Scripts/cbpr-validate.exe match *)",
+      "Bash(./.venv/Scripts/python.exe -c ' *)"
+    ]
+  }
+}
