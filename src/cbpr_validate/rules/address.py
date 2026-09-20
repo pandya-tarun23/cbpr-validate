@@ -93,6 +93,48 @@ def cbpr_addr_004_country_code(payment: Payment) -> list[Finding]:
     return findings
 
 
+MAX_ADRLINE_LEN = 70  # ISO 20022 AdrLine = Max70Text
+MAX_ADRLINE_CNT = 7   # AdrLine maxOccurs = 7
+
+
+@register
+def cbpr_addr_006_adrline_length(payment: Payment) -> list[Finding]:
+    findings: list[Finding] = []
+    for party_label, party in (("Dbtr", payment.dbtr), ("Cdtr", payment.cdtr)):
+        addr = getattr(party, "postal_address", None) if party else None
+        if not addr or not addr.adr_line:
+            continue
+        if len(addr.adr_line) > MAX_ADRLINE_CNT:
+            findings.append(
+                Finding(
+                    rule_id="CBPR-ADDR-006",
+                    severity=Severity.ERROR,
+                    message=(
+                        f"Too many address lines: {len(addr.adr_line)} "
+                        f"(max {MAX_ADRLINE_CNT})"
+                    ),
+                    location=f"{party_label}.PstlAdr.AdrLine",
+                    remediation=f"Use at most {MAX_ADRLINE_CNT} AdrLine elements",
+                    spec_reference="ISO 20022 pacs.008.001.08 AdrLine maxOccurs=7",
+                )
+            )
+        for idx, line in enumerate(addr.adr_line, start=1):
+            if len(line) > MAX_ADRLINE_LEN:
+                findings.append(
+                    Finding(
+                        rule_id="CBPR-ADDR-006",
+                        severity=Severity.ERROR,
+                        message=(
+                            f"Address line {idx} is {len(line)} characters "
+                            f"(max {MAX_ADRLINE_LEN})"
+                        ),
+                        location=f"{party_label}.PstlAdr.AdrLine[{idx}]",
+                        remediation=f"Keep each AdrLine within {MAX_ADRLINE_LEN} characters",
+                        spec_reference="ISO 20022 pacs.008.001.08 AdrLine = Max70Text",
+                    )
+                )
+    return findings
+
 # CBPR-ADDR-003 is intentionally not registered here because the cap value is
 # ambiguous in the public CBPR+ guideline material available for this phase.
 # We avoid guessing and leave the rule unregistered rather than hard-coding an
