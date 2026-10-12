@@ -38,6 +38,20 @@ TestPyPI -> PyPI, tag v1.0.0).
 - `CBPR-ADDR-003` (hybrid line-count cap) is **intentionally unregistered** —
   the cap is ambiguous in available guideline material and we refuse to guess.
   Leave it unregistered until the cap is confirmed.
+- **Severity profiles** (v1.2.0): `current` is the DEFAULT and reports
+  `CBPR-ADDR-001/002` as WARN; `sr2026` reports them as ERROR. This is because
+  SWIFT deferred the SR2026 payments changes with no confirmed new date. Do not
+  "fix" the default back to ERROR — a message the network accepts today must
+  not be reported as non-compliant. Profiles are data in `profiles.py` applied
+  ONCE at the end of `rules/registry.run_all()`; never add profile conditionals
+  inside a rule. `sr2026` restates the address severities explicitly rather
+  than inheriting them, on purpose.
+- `Finding.base_severity` is **always populated** (defaulted from `severity` by
+  a pre-validator, so rules keep passing only `severity=`). It is not optional;
+  `severity != base_severity` is the signal that a profile moved a finding.
+- `--fail-on` accepts BOTH `warn` and `warning` on both `validate` and `check`.
+  They used to disagree (`check` took `warn`, `validate` took `warning`); both
+  spellings now work on both and must keep working.
 - `CBPR-COD-004` now runs against a real parsed `pacs.002`; the Phase 3
   direct-construction workaround was removed in Phase 4. Done — don't revisit.
 - Correlation returns `MatchResult`, **not** `ValidationResult`, and lives
@@ -79,7 +93,9 @@ TestPyPI -> PyPI, tag v1.0.0).
    Phase 5 ONLY. If you catch yourself cross-referencing two messages or
    building an interface before then, stop — it's the next phase.
 7. **Stay in scope for the current phase.** If you find an out-of-scope gap,
-   log it in `KNOWN_ISSUES.md` rather than expanding scope.
+   log it in `KNOWN_ISSUES.md` rather than expanding scope. That file exists as
+   of v1.2.0 and already records the batch/folder summary, TOML config
+   overrides, the `check`-bypasses-`core` divergence, and `CBPR-ADDR-003`.
 8. **Definition of done for any phase:** all listed rules implemented AND
    registered; adversarial tests present; `pytest` green; coverage ≥ 90% on
    new modules; ruff + mypy clean; README + BUILD_PLAN updated; one commit.

@@ -144,8 +144,13 @@ Implement each as a registered rule with a stable ID. Group + severity below. **
 - `CBPR-STR-004` Settlement method / clearing system consistency — WARN
 
 **Address / SR2026 (`address.py`)** — the headline group
-- `CBPR-ADDR-001` Unstructured-only address (AdrLine, no TwnNm/Ctry) — ERROR *(invalid after 14 Nov 2026)*
-- `CBPR-ADDR-002` Minimum gate: structured TwnNm **and** Ctry present — ERROR if missing
+
+> **Severity is profile-dependent as of v1.2.0.** SWIFT deferred the SR2026 payments changes and no new date
+> is confirmed, so `ADDR-001` and `ADDR-002` are **WARN** under the default `current` profile and **ERROR**
+> under `sr2026`. The severities below are the `sr2026` (strict) reading. See `profiles.py`.
+
+- `CBPR-ADDR-001` Unstructured-only address (AdrLine, no TwnNm/Ctry) — ERROR under `sr2026`, WARN under `current`
+- `CBPR-ADDR-002` Minimum gate: structured TwnNm **and** Ctry present — ERROR under `sr2026`, WARN under `current`
 - `CBPR-ADDR-003` Hybrid address line-count within cap *(verify exact cap)* — WARN
 - `CBPR-ADDR-004` Ctry is ISO 3166-1 alpha-2 — ERROR
 - `CBPR-ADDR-005` Classify & report: fully-structured / hybrid / unstructured — INFO
@@ -448,6 +453,17 @@ python -m mypy src tests       # clean
 
 **Phase 6 — Productionise + publish (1 week)**
 Dockerfile, mkdocs site, README polish, badges, benchmark, TestPyPI → PyPI, tag v1.0.0. *DoD: clean install + run by someone other than you.*
+
+---
+
+### Post-v1 increments (outside the original phase plan)
+
+- **v1.1.0** — `CBPR-ADDR-006` (AdrLine length/count), ISO 4217 currency validation fix, `ARCHITECTURE.md`.
+- **v1.2.0** — **Severity profiles** (`current` / `sr2026`), in response to SWIFT deferring the SR2026
+  payments changes. Behaviour change: unstructured addresses are WARN by default. Adds `--profile` to the CLI,
+  `profile=` to the library, a `profile` field to `POST /validate`, `Finding.base_severity`, and the profile in
+  all three reporters. `--fail-on` now accepts `warn` and `warning` on both commands.
+  Deferred work is logged in `KNOWN_ISSUES.md`.
 
 ---
 
