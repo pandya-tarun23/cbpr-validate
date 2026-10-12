@@ -27,9 +27,14 @@ from cbpr_validate.model.payment import Payment
 from cbpr_validate.model.validation_result import ValidationResult
 from cbpr_validate.parsers.detect import detect_message_type
 from cbpr_validate.parsers.parse import UnsupportedMessageTypeError, parse_message
+from cbpr_validate.profiles import DEFAULT_PROFILE, Profile
 from cbpr_validate.report.json_report import match_to_json, validation_to_json
 from cbpr_validate.report.junit_report import match_to_junit, validation_to_junit
-from cbpr_validate.report.text_report import match_to_text, validation_to_text
+from cbpr_validate.report.text_report import (
+    match_to_text,
+    profile_suffix,
+    validation_to_text,
+)
 from cbpr_validate.rules.registry import run_all
 from cbpr_validate.schema.xsd import XsdUnavailableError, validate_against_xsd
 
@@ -50,8 +55,17 @@ class OutputFormat(StrEnum):
 
 
 class FailOn(StrEnum):
+    """Threshold for ``check``.
+
+    ``warn`` and ``warning`` are both accepted and mean the same thing. The two
+    commands historically spelled this differently - ``check`` took ``warn``
+    and ``validate`` took ``warning`` - so each now accepts both spellings
+    rather than making the caller remember which command wants which word.
+    """
+
     ERROR = "error"
     WARN = "warn"
+    WARNING = "warning"
     NEVER = "never"
 
 
@@ -60,6 +74,7 @@ class FailOnLevel(StrEnum):
     an off switch, so there is no "never" here."""
 
     ERROR = "error"
+    WARN = "warn"
     WARNING = "warning"
 
 
@@ -74,6 +89,15 @@ MessageArgument = Annotated[
 ]
 FormatOption = Annotated[
     OutputFormat, typer.Option("--format", "-f", help="Output format.")
+]
+ProfileOption = Annotated[
+    Profile,
+    typer.Option(
+        "--profile",
+        help="Rulebook to judge the message against: 'current' (what the network "
+        "accepts today - unstructured addresses are WARN) or 'sr2026' (the strict "
+        "future behaviour - they are ERROR).",
+    ),
 ]
 
 
@@ -96,7 +120,7 @@ def _parse(path: Path) -> Payment:
 def _should_fail(result: ValidationResult, fail_on: FailOn) -> bool:
     if fail_on is FailOn.NEVER:
         return False
-    if fail_on is FailOn.WARN:
+    if fail_on in (FailOn.WARN, FailOn.WARNING):
         return bool(result.errors or result.warnings)
     return bool(result.errors)
 
@@ -111,6 +135,7 @@ def validate(
         FailOnLevel,
         typer.Option("--fail-on", help="Lowest severity that makes this command exit 1."),
     ] = FailOnLevel.ERROR,
+    profile: ProfileOption = DEFAULT_PROFILE,
 ) -> None:
     """Validate a message against the CBPR+ usage guidelines.
 
@@ -118,7 +143,7 @@ def validate(
     malformed or unrecognised document is reported as an ``ORCH-*`` finding and
     still exits 1 - never a traceback.
     """
-    result = validate_message_file(message)
+    result = validate_message_file(message, profile)
 
     if as_json:
         typer.echo(validation_to_json(result))
@@ -134,10 +159,11 @@ def validate(
         verdict = "COMPLIANT" if result.is_compliant else "NOT COMPLIANT"
         typer.echo(
             f"{len(result.findings)} finding(s): {errors} error, {warnings} warn, "
-            f"{infos} info - {verdict}"
+            f"{infos} info - {verdict}{profile_suffix(result)}"
         )
 
-    tripped = result.errors or (fail_on is FailOnLevel.WARNING and result.warnings)
+    warn_threshold = fail_on in (FailOnLevel.WARN, FailOnLevel.WARNING)
+    tripped = result.errors or (warn_threshold and result.warnings)
     raise typer.Exit(EXIT_FINDINGS if tripped else EXIT_OK)
 
 
@@ -163,11 +189,12 @@ def check(
     fail_on: Annotated[
         FailOn, typer.Option("--fail-on", help="Severity that makes this command exit 1.")
     ] = FailOn.ERROR,
+    profile: ProfileOption = DEFAULT_PROFILE,
 ) -> None:
     """Validate one message against the CBPR+ usage guidelines."""
     raw = _read(message)
     payment = _parse(message)
-    result = run_all(payment)
+    result = run_all(payment, profile=profile)
 
     if xsd:
         try:

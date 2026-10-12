@@ -25,8 +25,16 @@ def summarise(findings: list[Finding]) -> dict[str, int]:
 
 
 def validation_to_dict(result: ValidationResult) -> dict[str, Any]:
+    """Envelope for one validation.
+
+    ``profile`` names the rulebook the verdict was reached under, so a stored
+    or piped result is never ambiguous. Each finding additionally carries
+    ``base_severity``: where that differs from ``severity``, the active profile
+    moved the finding, which is how a consumer spots an SR2026 readiness gap.
+    """
     return {
         "is_compliant": result.is_compliant,
+        "profile": result.profile.value,
         "summary": summarise(result.findings),
         "findings": [f.model_dump(mode="json") for f in result.findings],
     }

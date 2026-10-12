@@ -24,6 +24,7 @@ from cbpr_validate.model.finding import Finding, Severity
 from cbpr_validate.model.validation_result import ValidationResult
 from cbpr_validate.parsers.detect import detect_message_type
 from cbpr_validate.parsers.parse import SUPPORTED_MESSAGE_TYPES, parse_message
+from cbpr_validate.profiles import DEFAULT_PROFILE, Profile, resolve_profile
 from cbpr_validate.rules.registry import run_all
 
 RULE_PARSE_ERROR = "ORCH-PARSE-ERROR"
@@ -33,9 +34,12 @@ RULE_READ_ERROR = "ORCH-READ-ERROR"
 _SUPPORTED = ", ".join(SUPPORTED_MESSAGE_TYPES)
 
 
-def _failure(rule_id: str, message: str, remediation: str) -> ValidationResult:
+def _failure(
+    rule_id: str, message: str, remediation: str, profile: Profile
+) -> ValidationResult:
     """A result carrying one orchestration-level ERROR, so is_compliant is False."""
     return ValidationResult(
+        profile=profile,
         findings=[
             Finding(
                 rule_id=rule_id,
@@ -65,18 +69,30 @@ def _wellformed_error(data: bytes) -> str | None:
     return None
 
 
-def validate_bytes(data: bytes) -> ValidationResult:
+def validate_bytes(
+    data: bytes, profile: str | Profile | None = DEFAULT_PROFILE
+) -> ValidationResult:
     """Validate a message already in memory as bytes.
 
     This is the real implementation; the string and file entry points normalise
     their input and delegate here.
+
+    ``profile`` selects which rulebook the message is judged against - see
+    :mod:`cbpr_validate.profiles`. Note the asymmetry with the no-raise
+    contract above: a bad *document* comes back as an ``ORCH-*`` finding, but a
+    bad *profile name* raises ``ValueError``. The first is data we were asked
+    to assess; the second is a mistake in the call itself, and silently
+    validating against some other rulebook would be worse than failing.
     """
+    resolved = resolve_profile(profile)
+
     syntax_error = _wellformed_error(data)
     if syntax_error is not None:
         return _failure(
             RULE_PARSE_ERROR,
             f"Document is not well-formed XML: {syntax_error}",
             "Fix the XML syntax before validating",
+            resolved,
         )
 
     message_type = detect_message_type(data)
@@ -86,6 +102,7 @@ def validate_bytes(data: bytes) -> ValidationResult:
             "The document is well-formed XML but carries no recognised ISO 20022 "
             f"message namespace. Supported: {_SUPPORTED}",
             f"Supply one of: {_SUPPORTED}",
+            resolved,
         )
 
     try:
@@ -98,22 +115,27 @@ def validate_bytes(data: bytes) -> ValidationResult:
             RULE_PARSE_ERROR,
             f"Recognised as {message_type} but could not be parsed: {exc}",
             "Check the message against the ISO 20022 message definition",
+            resolved,
         )
 
-    return run_all(payment)
+    return run_all(payment, profile=resolved)
 
 
-def validate_string(xml: str) -> ValidationResult:
+def validate_string(
+    xml: str, profile: str | Profile | None = DEFAULT_PROFILE
+) -> ValidationResult:
     """Validate a message held as text.
 
     The text is encoded as UTF-8 before parsing. lxml refuses a ``str`` that
     carries an encoding declaration, so going via bytes is what makes
     ``<?xml version="1.0" encoding="UTF-8"?>`` work here at all.
     """
-    return validate_bytes(xml.encode("utf-8"))
+    return validate_bytes(xml.encode("utf-8"), profile)
 
 
-def validate_file(path: str | Path) -> ValidationResult:
+def validate_file(
+    path: str | Path, profile: str | Profile | None = DEFAULT_PROFILE
+) -> ValidationResult:
     """Validate a message on disk.
 
     An unreadable path comes back as an ``ORCH-READ-ERROR`` finding rather than
@@ -121,6 +143,7 @@ def validate_file(path: str | Path) -> ValidationResult:
     distinguishes "I never got to look at a message" from "the message is
     non-compliant".
     """
+    resolved = resolve_profile(profile)
     try:
         data = Path(path).read_bytes()
     except OSError as exc:
@@ -128,5 +151,6 @@ def validate_file(path: str | Path) -> ValidationResult:
             RULE_READ_ERROR,
             f"Could not read {path}: {exc}",
             "Check the path exists and is readable",
+            resolved,
         )
-    return validate_bytes(data)
+    return validate_bytes(data, resolved)

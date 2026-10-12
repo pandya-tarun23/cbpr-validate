@@ -19,6 +19,7 @@ from cbpr_validate.match.result import Direction, MatchKey, MessageRef, Scenario
 from cbpr_validate.model.finding import Finding
 from cbpr_validate.model.payment import Payment
 from cbpr_validate.parsers.parse import UnsupportedMessageTypeError, parse_message
+from cbpr_validate.profiles import DEFAULT_PROFILE, Profile
 from cbpr_validate.report.json_report import match_to_dict, validation_to_dict
 from cbpr_validate.rules.registry import run_all
 
@@ -42,6 +43,15 @@ class ValidateRequest(BaseModel):
         ...,
         description="The ISO 20022 message as XML (pacs.008, pacs.009, pacs.002 or pacs.004).",
     )
+    profile: Profile = Field(
+        DEFAULT_PROFILE,
+        description=(
+            "Rulebook to judge the message against. 'current' (the default) reports "
+            "unstructured postal addresses as WARN, matching what the network accepts "
+            "today. 'sr2026' reports them as ERROR, matching the deferred strict "
+            "behaviour. An unknown name is rejected with 422."
+        ),
+    )
 
 
 class CorrelateRequest(BaseModel):
@@ -60,6 +70,7 @@ class ValidationResponse(BaseModel):
     """Mirrors ``report.json_report.validation_to_dict``."""
 
     is_compliant: bool
+    profile: Profile
     summary: dict[str, int]
     findings: list[Finding]
 
@@ -103,7 +114,9 @@ def health() -> HealthResponse:
 def validate(request: ValidateRequest) -> ValidationResponse:
     """Run every registered CBPR+ usage-guideline rule against one message."""
     payment = _parse(request.message, "message")
-    return ValidationResponse(**validation_to_dict(run_all(payment)))
+    return ValidationResponse(
+        **validation_to_dict(run_all(payment, profile=request.profile))
+    )
 
 
 @app.post("/correlate", response_model=MatchResponse, tags=["correlate"])

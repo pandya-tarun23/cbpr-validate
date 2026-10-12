@@ -29,8 +29,11 @@ from tests.conftest import (
 )
 
 
-def _result(xml: bytes) -> ValidationResult:
-    return run_all(parse_message(xml))
+def _result(xml: bytes, profile: str = "sr2026") -> ValidationResult:
+    # Defaults to sr2026 because these tests assert ERROR-shaped output
+    # (JUnit <failure>, errors-before-info ordering). Profile-specific
+    # reporter behaviour is covered in test_profiles.py.
+    return run_all(parse_message(xml), profile=profile)
 
 
 def _match(a: bytes, b: bytes) -> MatchResult:

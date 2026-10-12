@@ -45,8 +45,10 @@ PACS008_CLEAN = f"""<?xml version="1.0" encoding="UTF-8"?>
 </Document>
 """.encode()
 
-# The headline failure: an unstructured-only creditor address. XSD-valid, and
-# non-compliant from 14 Nov 2026 (CBPR-ADDR-001 + CBPR-ADDR-002).
+# The headline case: an unstructured-only creditor address. XSD-valid, accepted
+# by the network today, and non-compliant once the deferred SR2026 rules land
+# (CBPR-ADDR-001 + CBPR-ADDR-002). WARN under the 'current' profile, ERROR
+# under 'sr2026' - so tests asserting a hard failure must name sr2026.
 PACS008_UNSTRUCTURED = PACS008_CLEAN.replace(
     b"<PstlAdr><TwnNm>London</TwnNm><Ctry>GB</Ctry></PstlAdr>",
     b"<PstlAdr><AdrLine>221B Baker Street, London</AdrLine></PstlAdr>",

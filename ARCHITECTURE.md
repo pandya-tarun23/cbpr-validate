@@ -44,12 +44,22 @@ everything downstream from message-version specifics.
             ┌─────────── interfaces ───────────┐
             │  library (core.py)  CLI  REST API │
             └─────────────────┬─────────────────┘
-                              │  (one shared core)
-   raw bytes ──► detect ──► parse ──► normalized model ──►  rules engine  ──► findings ──┐
-                (namespace)  (per type)   (Pydantic)         correlation   ──► matches  ──┤
-                                                                                          ▼
+                              │  (one shared core)        profile
+                              │                              │
+   raw bytes ──► detect ──► parse ──► normalized model ──► rules engine ──► severity ──► findings ──┐
+                (namespace)  (per type)   (Pydantic)        correlation     override    ──► matches ─┤
+                                                                           (profiles)               ▼
                                                                         report: text / JSON / JUnit
 ```
+
+**The severity-override layer** sits between the rules engine and the reporters,
+inside `rules/registry.run_all()` — the one place every interface reaches the
+rules through. Rules emit their own declared severity and know nothing about
+profiles; `profiles.apply_profile()` then rewrites the severities a profile
+names, keeping the original in `Finding.base_severity`. Because this happens
+before anything reads `ValidationResult.is_compliant`, a profile can change the
+verdict and the exit code without any rule's detection logic changing. See
+§4.3.
 
 <!-- TODO: if you draw a nicer diagram later (e.g. a PNG or mermaid), drop it in here. Optional. -->
 
@@ -81,6 +91,19 @@ everything downstream from message-version specifics.
 - Headline rule: `CBPR-AGT-002` — the pacs.009 COV reimbursement-vs-intermediary agent distinction.
 - Code-set checks (`codes.py`) validate against a committed, version-stamped snapshot of the ISO 20022
   External Code Sets (`codesets/loader.py` + `codesets/data/`), so validation is reproducible offline.
+
+**Severity profiles (`profiles.py`).** `run_all()` takes a keyword-only `profile` and applies it as the last
+step, after every rule has run and before anything reads `is_compliant`. A profile is data — a flat
+`rule_id -> severity` map — not branching inside a rule: `current` reports `CBPR-ADDR-001/002` as WARN
+(what the network accepts today, SR2026 having been deferred with no new date), `sr2026` reports them as
+ERROR. Rules emit their declared severity and never see the profile. An overridden finding keeps the rule's
+severity in `Finding.base_severity`, so `severity != base_severity` identifies an SR2026 readiness gap, and
+`ValidationResult.profile` records which rulebook produced the verdict.
+
+This is deliberately the *only* override site. `run_all()` is the single point every interface reaches the
+rules through — the library via `core.py`, the CLI's `check`, and the API's `/validate` — so no front door can
+disagree with another about what a profile means. Applying a profile is idempotent: it compares against
+`base_severity`, not the current severity.
 
 ### 4.4 Correlation engine (`match/`)
 - Separate from rules because it evaluates a relationship **between two messages**, not a property of one.
@@ -145,6 +168,10 @@ This section is just the index. The four marked ★ are the ones the build plan 
 - **ADR-004 ★** — Correlation is pairwise/stateless in v1, not a stored ledger.
 - **ADR-005** — `MatchResult` is a distinct type from `ValidationResult` (relationship vs. property).
 - **ADR-006** — The library core never raises; orchestration errors are findings with an `ORCH-` prefix.
+- **ADR-007** — Severity profiles are data applied once in `run_all()`, not conditionals inside rules; `current`
+  is the default because SR2026 was deferred with no confirmed date.
+- **ADR-008** — A bad *profile name* raises (CLI exit 2 / API 422) even though a bad *document* does not:
+  silently judging against an unintended rulebook is worse than failing loudly.
 
 ---
 

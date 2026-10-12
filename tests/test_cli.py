@@ -43,21 +43,26 @@ def test_check_clean_message_exits_zero(pacs008_clean: Path) -> None:
 
 
 def test_check_non_compliant_message_exits_one(pacs008_unstructured: Path) -> None:
-    result = runner.invoke(app, ["check", str(pacs008_unstructured)])
+    result = runner.invoke(app, ["check", str(pacs008_unstructured), "--profile", "sr2026"])
     assert result.exit_code == EXIT_FINDINGS
     assert "NOT COMPLIANT" in result.stdout
     assert "CBPR-ADDR-001" in result.stdout
 
 
 def test_check_json_format(pacs008_unstructured: Path) -> None:
-    result = runner.invoke(app, ["check", str(pacs008_unstructured), "--format", "json"])
+    result = runner.invoke(
+        app,
+        ["check", str(pacs008_unstructured), "--format", "json", "--profile", "sr2026"],
+    )
     assert result.exit_code == EXIT_FINDINGS
     payload = json.loads(result.stdout)
     assert payload["is_compliant"] is False
 
 
 def test_check_junit_format(pacs008_unstructured: Path) -> None:
-    result = runner.invoke(app, ["check", str(pacs008_unstructured), "-f", "junit"])
+    result = runner.invoke(
+        app, ["check", str(pacs008_unstructured), "-f", "junit", "--profile", "sr2026"]
+    )
     assert result.exit_code == EXIT_FINDINGS
     root = ET.fromstring(result.stdout)
     assert root.findall(".//failure")
@@ -65,7 +70,7 @@ def test_check_junit_format(pacs008_unstructured: Path) -> None:
 
 def test_check_fail_on_never_still_reports_but_exits_zero(pacs008_unstructured: Path) -> None:
     result = runner.invoke(
-        app, ["check", str(pacs008_unstructured), "--fail-on", "never"]
+        app, ["check", str(pacs008_unstructured), "--fail-on", "never", "--profile", "sr2026"]
     )
     assert result.exit_code == EXIT_OK
     assert "NOT COMPLIANT" in result.stdout
@@ -170,7 +175,17 @@ def test_check_with_xsd_dir_runs_both_layers(
 
     result = runner.invoke(
         app,
-        ["check", str(pacs008_unstructured), "--xsd", "--xsd-dir", str(schemas), "-f", "json"],
+        [
+            "check",
+            str(pacs008_unstructured),
+            "--xsd",
+            "--xsd-dir",
+            str(schemas),
+            "-f",
+            "json",
+            "--profile",
+            "sr2026",
+        ],
     )
     assert result.exit_code == EXIT_FINDINGS
     payload = json.loads(result.stdout)
@@ -201,7 +216,7 @@ def test_validate_clean_message_exits_zero(pacs008_clean: Path) -> None:
 
 
 def test_validate_catches_a_known_violation(pacs008_unstructured: Path) -> None:
-    result = runner.invoke(app, ["validate", str(pacs008_unstructured)])
+    result = runner.invoke(app, ["validate", str(pacs008_unstructured), "--profile", "sr2026"])
     assert result.exit_code == EXIT_FINDINGS
     assert "CBPR-ADDR-001 | ERROR |" in result.stdout
     assert "CBPR-ADDR-002 | ERROR |" in result.stdout
@@ -214,12 +229,17 @@ def test_validate_prints_location_when_present(pacs008_unstructured: Path) -> No
 
 
 def test_validate_summary_line_counts_by_severity(pacs008_unstructured: Path) -> None:
-    result = runner.invoke(app, ["validate", str(pacs008_unstructured)])
-    assert "4 finding(s): 2 error, 0 warn, 2 info - NOT COMPLIANT" in result.stdout
+    result = runner.invoke(app, ["validate", str(pacs008_unstructured), "--profile", "sr2026"])
+    assert (
+        "4 finding(s): 2 error, 0 warn, 2 info - NOT COMPLIANT (profile: sr2026)"
+        in result.stdout
+    )
 
 
 def test_validate_json_is_valid_json(pacs008_unstructured: Path) -> None:
-    result = runner.invoke(app, ["validate", str(pacs008_unstructured), "--json"])
+    result = runner.invoke(
+        app, ["validate", str(pacs008_unstructured), "--json", "--profile", "sr2026"]
+    )
     assert result.exit_code == EXIT_FINDINGS
     payload = json.loads(result.stdout)
     assert payload["is_compliant"] is False

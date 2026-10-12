@@ -48,7 +48,10 @@ def test_validate_clean_message() -> None:
 
 
 def test_validate_reports_findings() -> None:
-    response = client.post("/validate", json={"message": PACS008_UNSTRUCTURED.decode()})
+    response = client.post(
+        "/validate",
+        json={"message": PACS008_UNSTRUCTURED.decode(), "profile": "sr2026"},
+    )
     payload = response.json()
     assert payload["is_compliant"] is False
     assert {f["rule_id"] for f in payload["findings"]} >= {"CBPR-ADDR-001", "CBPR-ADDR-002"}
@@ -156,7 +159,9 @@ def test_correlate_rejects_an_unparseable_message() -> None:
 
 
 def test_response_models_mirror_the_json_reporter_keys() -> None:
-    validation = validation_to_dict(run_all(parse_message(PACS008_UNSTRUCTURED)))
+    validation = validation_to_dict(
+        run_all(parse_message(PACS008_UNSTRUCTURED), profile="sr2026")
+    )
     assert set(validation) == set(ValidationResponse.model_fields)
 
     match = match_to_dict(
