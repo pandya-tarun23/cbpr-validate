@@ -87,10 +87,9 @@ def apply_profile(findings: list[Finding], profile: Profile) -> list[Finding]:
     overridden finding keeps its original severity in ``base_severity``, so a
     report can still say "WARN under current, ERROR under sr2026".
     """
+    # A profile with no entries (or one absent from the table) simply leaves
+    # every finding alone, which the loop below already does - no special case.
     overrides = PROFILE_OVERRIDES.get(profile, {})
-    if not overrides:
-        return findings
-
     adjusted: list[Finding] = []
     for finding in findings:
         target = overrides.get(finding.rule_id)

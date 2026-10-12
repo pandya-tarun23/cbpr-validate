@@ -72,7 +72,7 @@ def validation_to_text(result: ValidationResult, source: str | None = None) -> s
             lines.append("")
         lines.pop()
     verdict = "COMPLIANT" if result.is_compliant else "NOT COMPLIANT"
-    lines.extend(["", f"{_tally(result.findings)} - {verdict}"])
+    lines.extend(["", f"{_tally(result.findings)} - {verdict}{profile_suffix(result)}"])
     return "\n".join(lines)
 
 
