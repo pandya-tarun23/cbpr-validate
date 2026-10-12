@@ -45,6 +45,11 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+# A one-off helper that embeds a generated single-line code-set literal.
+# Reflowing generated data would obscure it; the length is not a style choice.
+"add_currencies.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

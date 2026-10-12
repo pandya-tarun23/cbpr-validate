@@ -36,19 +36,26 @@ runner = CliRunner()
 client = TestClient(api_app)
 
 
-def _library_validate(message: bytes) -> dict[str, Any]:
-    return validation_to_dict(run_all(parse_message(message)))
+PROFILES = ("current", "sr2026")
 
 
-def _cli_validate(path: Path) -> dict[str, Any]:
-    result = runner.invoke(cli_app, ["check", str(path), "--format", "json"])
+def _library_validate(message: bytes, profile: str = "current") -> dict[str, Any]:
+    return validation_to_dict(run_all(parse_message(message), profile=profile))
+
+
+def _cli_validate(path: Path, profile: str = "current") -> dict[str, Any]:
+    result = runner.invoke(
+        cli_app, ["check", str(path), "--format", "json", "--profile", profile]
+    )
     assert result.exit_code in (0, 1), result.stdout
     parsed: dict[str, Any] = json.loads(result.stdout)
     return parsed
 
 
-def _api_validate(message: bytes) -> dict[str, Any]:
-    response = client.post("/validate", json={"message": message.decode()})
+def _api_validate(message: bytes, profile: str = "current") -> dict[str, Any]:
+    response = client.post(
+        "/validate", json={"message": message.decode(), "profile": profile}
+    )
     assert response.status_code == 200
     parsed: dict[str, Any] = response.json()
     return parsed
@@ -64,15 +71,17 @@ def _api_validate(message: bytes) -> dict[str, Any]:
         ("pacs004", PACS004),
     ],
 )
+@pytest.mark.parametrize("profile", PROFILES)
 def test_validate_is_identical_across_interfaces(
-    name: str, message: bytes, tmp_path: Path
+    name: str, message: bytes, profile: str, tmp_path: Path
 ) -> None:
     path = tmp_path / f"{name}.xml"
     path.write_bytes(message)
 
-    library = _library_validate(message)
-    assert _cli_validate(path) == library
-    assert _api_validate(message) == library
+    library = _library_validate(message, profile)
+    assert library["profile"] == profile
+    assert _cli_validate(path, profile) == library
+    assert _api_validate(message, profile) == library
 
 
 def _library_correlate(a: bytes, b: bytes, direction: str | None = None) -> dict[str, Any]:
@@ -122,12 +131,48 @@ def test_correlate_is_identical_across_interfaces(
     assert _api_correlate(a, b, direction) == library
 
 
-def test_all_three_agree_on_the_verdict_not_just_the_payload(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("profile", "message", "compliant"),
+    [
+        # The clean message is compliant under either rulebook.
+        ("current", PACS008_CLEAN, True),
+        ("sr2026", PACS008_CLEAN, True),
+        # The unstructured address is the one that moves: a readiness gap
+        # today, a rejection once SR2026 lands.
+        ("current", PACS008_UNSTRUCTURED, True),
+        ("sr2026", PACS008_UNSTRUCTURED, False),
+    ],
+)
+def test_all_three_agree_on_the_verdict_not_just_the_payload(
+    profile: str, message: bytes, compliant: bool, tmp_path: Path
+) -> None:
     """The CLI's exit code must track the same is_compliant the others report."""
-    for message, compliant in ((PACS008_CLEAN, True), (PACS008_UNSTRUCTURED, False)):
-        path = tmp_path / "m.xml"
-        path.write_bytes(message)
-        cli = runner.invoke(cli_app, ["check", str(path), "--format", "json"])
-        assert (cli.exit_code == 0) is compliant
-        assert _library_validate(message)["is_compliant"] is compliant
-        assert _api_validate(message)["is_compliant"] is compliant
+    path = tmp_path / "m.xml"
+    path.write_bytes(message)
+    cli = runner.invoke(
+        cli_app, ["check", str(path), "--format", "json", "--profile", profile]
+    )
+    assert (cli.exit_code == 0) is compliant
+    assert _library_validate(message, profile)["is_compliant"] is compliant
+    assert _api_validate(message, profile)["is_compliant"] is compliant
+
+
+@pytest.mark.parametrize("profile", PROFILES)
+@pytest.mark.parametrize("message", [PACS008_CLEAN, PACS008_UNSTRUCTURED])
+def test_check_and_validate_agree_on_the_verdict(
+    profile: str, message: bytes, tmp_path: Path
+) -> None:
+    """``check`` and ``validate`` reach the rules by different roads - ``check``
+    parses for itself while ``validate`` goes through ``core`` - so this pins
+    that they still return the same verdict for the same profile. Deliberate
+    guard while that divergence remains (see KNOWN_ISSUES.md)."""
+    path = tmp_path / "m.xml"
+    path.write_bytes(message)
+    via_check = runner.invoke(
+        cli_app, ["check", str(path), "--format", "json", "--profile", profile]
+    )
+    via_validate = runner.invoke(
+        cli_app, ["validate", str(path), "--json", "--profile", profile]
+    )
+    assert via_check.exit_code == via_validate.exit_code
+    assert json.loads(via_check.stdout) == json.loads(via_validate.stdout)

@@ -45,6 +45,20 @@ def _sorted(findings: list[Finding]) -> list[Finding]:
     return sorted(findings, key=lambda f: _ORDER[f.severity])
 
 
+def profile_suffix(result: ValidationResult) -> str:
+    """The ``(profile: x) - n SR2026 address gaps`` tail for a summary line.
+
+    Shared by the text reporter and the CLI's ``validate`` summary so the two
+    cannot describe the same result differently. ASCII only - a hyphen, never
+    an em dash, because this gets printed to cp1252 consoles.
+    """
+    suffix = f" (profile: {result.profile.value})"
+    gaps = len(result.overridden)
+    if gaps:
+        suffix += f" - {gaps} SR2026 address {'gap' if gaps == 1 else 'gaps'}"
+    return suffix
+
+
 def validation_to_text(result: ValidationResult, source: str | None = None) -> str:
     header = "cbpr-validate - usage-guideline validation"
     if source:

@@ -51,7 +51,22 @@ def _add_case(suite: ET.Element, finding: Finding) -> None:
         ET.SubElement(case, "system-out").text = f"{finding.severity.value}: {detail}"
 
 
-def _build_suite(name: str, findings: list[Finding], passed_message: str) -> ET.Element:
+def _add_properties(suite: ET.Element, properties: dict[str, str]) -> None:
+    """Attach <properties> to a suite. CI tools surface these alongside results,
+    which is where the profile belongs: it says which rulebook the run used."""
+    if not properties:
+        return
+    container = ET.SubElement(suite, "properties")
+    for key, value in properties.items():
+        ET.SubElement(container, "property", {"name": key, "value": value})
+
+
+def _build_suite(
+    name: str,
+    findings: list[Finding],
+    passed_message: str,
+    properties: dict[str, str] | None = None,
+) -> ET.Element:
     failures = sum(1 for f in findings if f.severity is Severity.ERROR)
     suites = ET.Element("testsuites")
     suite = ET.SubElement(
@@ -65,6 +80,7 @@ def _build_suite(name: str, findings: list[Finding], passed_message: str) -> ET.
             "skipped": "0",
         },
     )
+    _add_properties(suite, properties or {})
     if not findings:
         ET.SubElement(suite, "testcase", {"classname": name, "name": passed_message})
     else:
@@ -81,7 +97,14 @@ def _serialise(suites: ET.Element) -> str:
 
 def validation_to_junit(result: ValidationResult, source: str | None = None) -> str:
     name = f"cbpr-validate.{source}" if source else "cbpr-validate"
-    return _serialise(_build_suite(name, result.findings, "no findings"))
+    return _serialise(
+        _build_suite(
+            name,
+            result.findings,
+            "no findings",
+            properties={"profile": result.profile.value},
+        )
+    )
 
 
 def match_to_junit(result: MatchResult) -> str:

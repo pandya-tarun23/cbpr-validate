@@ -65,7 +65,8 @@ def test_every_supported_family_runs_the_rules(message: bytes) -> None:
 
 
 def test_unstructured_address_is_caught_with_the_right_rule_and_severity() -> None:
-    result = validate_bytes(PACS008_UNSTRUCTURED)
+    # Pinned to sr2026: under the default 'current' profile these are WARN.
+    result = validate_bytes(PACS008_UNSTRUCTURED, "sr2026")
     assert not result.is_compliant
     by_id = {f.rule_id: f for f in result.findings}
     assert by_id["CBPR-ADDR-001"].severity is Severity.ERROR

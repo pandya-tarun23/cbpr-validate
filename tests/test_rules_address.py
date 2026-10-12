@@ -123,7 +123,8 @@ SAMPLE_PARTIAL = b"""
 
 def test_addr_002_fires_on_partial_address() -> None:
     p = parse_pacs008(SAMPLE_PARTIAL)
-    result = run_all(p)
+    # sr2026: ADDR-002 is only an ERROR under the strict rulebook.
+    result = run_all(p, profile="sr2026")
     findings_002 = [f for f in result.findings if f.rule_id == "CBPR-ADDR-002"]
     # the rule must actually fire on a town-without-country address
     assert findings_002, "ADDR-002 should fire when Ctry is missing"
